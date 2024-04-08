@@ -1,38 +1,43 @@
 import React, { useState } from 'react';
+import { Input, Button, VStack, Box } from '@chakra-ui/react';
 
 const Browser = () => {
-    const [url, setUrl] = useState('');
-    const [script, setScript] = useState('');
+  const [url, setUrl] = useState('');
+  const [script, setScript] = useState('');
+  const [video, setVideo] = useState('');
 
-    const handleRunAutomation = async () => {
-        const actions = [
-            { name: 'navigate', selector: url },
-            { type: 'script', script: script } // Custom script
-        ];
+  const handleRunAutomation = async () => {
+    const response = await fetch('/api/automate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url, script })
+    });
+    const { videoUrl } = await response.json();
+    setVideo(videoUrl);
+  };
 
-        await fetch('/api/automate', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ url, actions })
-        });
-    };
+  return (
+    <VStack spacing={2}>
+      <Input
+        value={url}
+        onChange={e => setUrl(e.target.value)}
+        placeholder="Enter URL"
+      />
+      <Input 
+        value={script}
+        onChange={e => setScript(e.target.value)}
+        placeholder="Enter custom script"
+      />
+      <Button onClick={handleRunAutomation} colorScheme="blue">Run Automation</Button>
+      
+      {video && (
+        <Box>
+          <video src={video} controls width="100%" />
+        </Box>
+      )}
 
-    return (
-        <div>
-            <input 
-                type="text" 
-                value={url}
-                onChange={e => setUrl(e.target.value)}
-                placeholder="Enter URL"
-            />
-            <textarea
-                value={script}
-                onChange={e => setScript(e.target.value)}
-                placeholder="Enter custom script"
-            />
-            <button onClick={handleRunAutomation}>Run Automation</button>
-        </div>
-    );
+    </VStack>
+  );
 };
 
 export default Browser;

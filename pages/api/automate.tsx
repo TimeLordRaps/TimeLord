@@ -1,32 +1,27 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { chromium } from 'playwright';
-import { basicActions, executeCustomScript } from '../../utils/browserActions';
+import fs from 'fs';
+import path from 'path';
 
-export default async function handler(req, res) {
-    const { url, actions } = req.body;
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  const { url, script } = req.body;
 
-    try {
-        const browser = await chromium.launch({ headless: true });
-        const page = await browser.newPage();
-        await page.goto(url);
+  const browser = await chromium.launch();
+  const page = await browser.newPage();
+  await page.goto(url);
 
-        for (let action of actions) {
-            if (action.type === 'script') {
-                // Evaluate custom script directly on the page
-                await executeCustomScript(page, action.script);
-            } else {
-                // Execute predefined actions
-                const act = basicActions[action.name];
-                if (act) {
-                    await act(page, action.selector);
-                }
-            }
-        }
+  const scriptFunction = new Function(script);
+  await scriptFunction(page);
 
-        await browser.close();
-        res.status(200).json({ message: 'Automation completed successfully' });
-    } catch (error) {
-        console.error('Automation error:', error);
-        res.status(500).json({ error: error.message });
-    }
+  const videoDir = path.join(process.cwd(), 'public', 'videos');
+  if (!fs.existsSync(videoDir)) {
+    fs.mkdirSync(videoDir);
+  }
+
+  const videoPath = path.join(videoDir, `automation-${Date.now()}.webm`);
+  await page.video().saveAs(videoPath);
+
+  await browser.close();
+
+  res.status(200).json({ videoUrl: `/videos/${path.basename(videoPath)}` });
 }

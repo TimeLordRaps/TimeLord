@@ -1,7 +1,7 @@
 import React from 'react';
 import Browser from './Browser';
 import Chat from './Chat';
-import FileEditor from './FileEditor';
+import Editor from './Editor';
 import Terminal from './Terminal';
 
 const Workspace: React.FC = () => {
@@ -12,7 +12,7 @@ const Workspace: React.FC = () => {
       </div>
       <div className="flex flex-col">
         <Browser />
-        <FileEditor />
+        <Editor />
         <Terminal />
       </div>
     </div>
