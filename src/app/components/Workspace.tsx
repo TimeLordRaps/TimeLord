@@ -1,14 +1,7 @@
 // src/app/components/Workspace.tsx
 
 import React, { useState, useEffect } from 'react';
-
-// Interfaces
-interface IFile {
-  name: string;
-  path: string;
-  size?: number;
-  lastModified?: string;
-}
+import { IFile } from '../utils/types';
 
 const Workspace: React.FC = () => {
   const [files, setFiles] = useState<IFile[]>([]);

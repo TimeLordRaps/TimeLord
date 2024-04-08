@@ -2,19 +2,9 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import fs from 'fs';
 import path from 'path';
+import { IFile } from '../utils/types';
+import { FileResponse } from '../utils/types';
 
-interface Data {
-  message: string;
-  content?: string;
-  files?: IFile[];
-}
-
-interface IFile {
-  name: string;
-  path: string;
-  size?: number;
-  lastModified?: string;
-}
 
 // Helper to sanitize input to prevent directory traversal
 function sanitizeFilename(filename: string): string {
@@ -22,7 +12,7 @@ function sanitizeFilename(filename: string): string {
 }
 
 // API handler to process file operations
-export default function handler(req: NextApiRequest, res: NextApiResponse<Data>) {
+export default function handler(req: NextApiRequest, res: NextApiResponse<FileResponse>) {
   const { query: { filename }, method, body } = req;
 
   // Construct file path from filename query parameter
