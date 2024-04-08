@@ -1,20 +1,38 @@
-import React from 'react';
+import React, { useState } from 'react';
 
-const Browser: React.FC = () => {
-  return (
-    <div>
-      <h3>Browser</h3>
-      <input
-        type="text"
-        placeholder="Search website content"
-      />
-      <button>Search</button>
-      <div>
-        {/* Placeholder for website content */}
-        <p>Website content will be displayed here.</p>
-      </div>
-    </div>
-  );
+const Browser = () => {
+    const [url, setUrl] = useState('');
+    const [script, setScript] = useState('');
+
+    const handleRunAutomation = async () => {
+        const actions = [
+            { name: 'navigate', selector: url },
+            { type: 'script', script: script } // Custom script
+        ];
+
+        await fetch('/api/automate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url, actions })
+        });
+    };
+
+    return (
+        <div>
+            <input 
+                type="text" 
+                value={url}
+                onChange={e => setUrl(e.target.value)}
+                placeholder="Enter URL"
+            />
+            <textarea
+                value={script}
+                onChange={e => setScript(e.target.value)}
+                placeholder="Enter custom script"
+            />
+            <button onClick={handleRunAutomation}>Run Automation</button>
+        </div>
+    );
 };
 
 export default Browser;
