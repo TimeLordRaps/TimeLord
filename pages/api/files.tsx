@@ -2,8 +2,8 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import fs from 'fs';
 import path from 'path';
-import { IFile } from '../utils/types';
-import { FileResponse } from '../utils/types';
+import { IFile } from '../../utils/types';
+import { FileResponse } from '../../utils/types';
 
 
 // Helper to sanitize input to prevent directory traversal
@@ -17,7 +17,7 @@ export default function handler(req: NextApiRequest, res: NextApiResponse<FileRe
 
   // Construct file path from filename query parameter
   const safeFilename = sanitizeFilename(filename as string);
-  const filePath = path.join(process.env.FILE_STORAGE_PATH || '/workspace', safeFilename);
+  const filePath = path.join(process.env.FILE_STORAGE_PATH || '../../workspace', safeFilename);
 
   switch (method) {
     case 'GET': // Retrieve a file
