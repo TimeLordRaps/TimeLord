@@ -1,5 +1,9 @@
+// components/FileEditor.tsx
 import React, { useState, useEffect } from 'react';
+import FileNavigator from 'react-file-manager';
+import 'react-file-manager/dist/style.css';
 import { IFile } from '../utils/types';
+import CodeEditor from './CodeEditor';
 
 const FileEditor: React.FC = () => {
   const [files, setFiles] = useState<IFile[]>([]);
@@ -29,6 +33,11 @@ const FileEditor: React.FC = () => {
     setIsLoading(false);
   };
 
+  const handleFileClick = (file: IFile) => {
+    setSelectedFile(file);
+    fetchFileContent(file);
+  };
+
   const fetchFileContent = async (file: IFile) => {
     setIsLoading(true);
     try {
@@ -43,15 +52,6 @@ const FileEditor: React.FC = () => {
       setError(err.message);
     }
     setIsLoading(false);
-  };
-
-  const handleFileClick = (file: IFile) => {
-    setSelectedFile(file);
-    fetchFileContent(file);
-  };
-
-  const handleFileContentChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setFileContent(e.target.value);
   };
 
   const handleSaveFile = async () => {
@@ -73,55 +73,32 @@ const FileEditor: React.FC = () => {
     }
   };
 
-  const getFileIcon = (fileName: string) => {
+  const getLanguage = (fileName: string) => {
     const extension = fileName.split('.').pop();
     switch (extension) {
-      case 'txt':
-        return '📝';
       case 'js':
+        return 'javascript';
       case 'ts':
+        return 'typescript';
       case 'jsx':
+        return 'javascript';
       case 'tsx':
-        return '💻';
+        return 'typescript';
       case 'css':
-        return '🎨';
-      case 'jpg':
-      case 'jpeg':
-      case 'png':
-      case 'gif':
-        return '🖼️';
+        return 'css';
+      case 'html':
+        return 'html';
+      case 'json':
+        return 'json';
       default:
-        return '📄';
+        return 'plaintext';
     }
   };
 
   return (
     <div className="flex h-full bg-white rounded-lg shadow-lg overflow-hidden">
       <div className="w-1/4 bg-gray-100 border-r border-gray-200 p-4">
-        <h2 className="text-2xl font-semibold mb-4">Files</h2>
-        {error && <p className="text-red-500 mb-4">{error}</p>}
-        {isLoading ? (
-          <p className="text-gray-500">Loading files...</p>
-        ) : (
-          <ul className="grid grid-cols-1 gap-4">
-            {files.map((file) => (
-              <li
-                key={file.name}
-                className={`card cursor-pointer p-4 rounded-lg transition duration-300 ${
-                  selectedFile?.name === file.name
-                    ? 'bg-primary text-white shadow-md'
-                    : 'bg-white text-gray-800 hover:bg-gray-100 hover:shadow-md'
-                }`}
-                onClick={() => handleFileClick(file)}
-              >
-                <div className="flex items-center">
-                  <span className="text-2xl">{getFileIcon(file.name)}</span>
-                  <span className="ml-2 font-semibold">{file.name}</span>
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
+        <FileNavigator files={files} onFileClick={handleFileClick} />
       </div>
       <div className="w-3/4 p-8">
         {selectedFile ? (
@@ -136,10 +113,10 @@ const FileEditor: React.FC = () => {
                 {isLoading ? 'Saving...' : 'Save'}
               </button>
             </div>
-            <textarea
-              className="w-full h-[calc(100%-100px)] p-4 border border-gray-300 rounded-lg shadow-inner focus:outline-none focus:ring-2 focus:ring-primary resize-none transition duration-300"
-              value={fileContent}
-              onChange={handleFileContentChange}
+            <CodeEditor
+              language={getLanguage(selectedFile.name)}
+              code={fileContent}
+              onChange={setFileContent}
             />
             {savedStatus && <p className="mt-2 text-green-500">{savedStatus}</p>}
           </>
