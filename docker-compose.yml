@@ -1,3 +1,4 @@
+# docker-compose.yml
 services:
   web:
     build: .
@@ -10,4 +11,12 @@ services:
       - NODE_ENV=development
       - FILE_STORAGE_PATH=${FILE_STORAGE_PATH:-/workspace}
     working_dir: /app
+    depends_on:
+      - terminal
 
+  terminal:
+    build: .
+    volumes:
+      - .:/app
+    stdin_open: true
+    tty: true
