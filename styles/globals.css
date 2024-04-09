@@ -1,7 +1,4 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
+/* globals.css */
 :root {
   --foreground-rgb: 51, 51, 51;
   --background-start-rgb: 255, 255, 255;
@@ -19,19 +16,15 @@
 body {
   color: rgb(var(--foreground-rgb));
   background: linear-gradient(
-      to bottom,
-      transparent,
-      rgb(var(--background-end-rgb))
-    )
-    rgb(var(--background-start-rgb));
+    to bottom,
+    transparent,
+    rgb(var(--background-end-rgb))
+  )
+  rgb(var(--background-start-rgb));
 }
 
-@layer components {
-  .btn-primary {
-    @apply px-4 py-2 bg-primary text-white rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-400;
-  }
-
-  .card {
-    @apply bg-white shadow-md rounded-lg p-4;
-  }
+/* You may want to add custom global styles that do not conflict with Chakra UI here */
+/* For example, if you have a specific font you'd like to use throughout the app: */
+body {
+  font-family: 'Inter', sans-serif; /* Assuming 'Inter' is the font you'd like to use */
 }
