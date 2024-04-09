@@ -1,4 +1,3 @@
-# docker-compose.yml
 services:
   web:
     build: .
@@ -9,14 +8,18 @@ services:
       - "3000:3000"
     environment:
       - NODE_ENV=development
-      - FILE_STORAGE_PATH=${FILE_STORAGE_PATH:-/workspace}
-    working_dir: /app
+      - FILE_STORAGE_PATH=${FILE_STORAGE_PATH:-./workspace}
+    command: npm run dev
     depends_on:
       - terminal
 
   terminal:
-    build: .
+    image: node:18-alpine
     volumes:
-      - .:/app
-    stdin_open: true
+      - ${FILE_STORAGE_PATH:-./workspace}:/workspace
+    working_dir: /workspace
+    command: sh -c "while true; do sleep 30; done;"
+    environment:
+      - NODE_ENV=development
     tty: true
+    stdin_open: true

@@ -1,35 +1,74 @@
 // components/Terminal.tsx
-import React, { useState, useEffect, useRef } from 'react';
-import { VStack, Box, Input } from '@chakra-ui/react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { VStack, Box, Input, useToast } from '@chakra-ui/react';
 import io from 'socket.io-client';
 
-const Terminal: React.FC = () => {
+const Terminal = () => {
   const [command, setCommand] = useState('');
   const [output, setOutput] = useState('');
   const [socket, setSocket] = useState(null);
   const terminalRef = useRef(null);
+  const toast = useToast();
+  const toastIdRef = useRef();
+
+  const showToast = useCallback((title, description, status) => {
+    // Only show one toast at a time
+    if (!toastIdRef.current) {
+      toastIdRef.current = toast({
+        title,
+        description,
+        status,
+        duration: null,
+        isClosable: true,
+        onCloseComplete: () => {
+          toastIdRef.current = undefined;
+        },
+      });
+    }
+  }, [toast]);
 
   useEffect(() => {
-    const newSocket = io();
+    const newSocket = io({
+      path: '/api/terminal', // Ensure this path is correct
+      transports: ['websocket'],
+    });
+
     setSocket(newSocket);
 
     newSocket.on('connect', () => {
-      console.log('Connected to server');
+      console.log('Connected to the terminal service.');
+      if (toastIdRef.current) {
+        toast.close(toastIdRef.current);
+        toastIdRef.current = undefined;
+      }
+    });
+
+    newSocket.on('connect_error', (error) => {
+      console.error('Socket connection error:', error.message);
+      showToast(
+        'Connection Error',
+        'Unable to connect to the terminal service. Please ensure Docker is running.',
+        'error'
+      );
     });
 
     newSocket.on('output', (data) => {
-      console.log('Received output:', data);
       setOutput((prevOutput) => prevOutput + '\n' + data);
     });
 
     newSocket.on('disconnect', () => {
-      console.log('Disconnected from server');
+      console.log('Disconnected from the terminal service.');
+      showToast(
+        'Disconnected',
+        'The connection to the terminal service has been lost.',
+        'warning'
+      );
     });
 
     return () => {
       newSocket.disconnect();
     };
-  }, []);
+  }, [showToast]);
 
   useEffect(() => {
     if (terminalRef.current) {
@@ -38,11 +77,17 @@ const Terminal: React.FC = () => {
   }, [output]);
 
   const handleSendCommand = (e) => {
-    if (e.key === 'Enter') {
-      if (socket) {
+    if (e.key === 'Enter' && command.trim()) {
+      if (socket && socket.connected) {
         socket.emit('command', command);
-        setOutput((prevOutput) => prevOutput + '\n$ ' + command);
+        setOutput((prevOutput) => `${prevOutput}\n$ ${command}`);
         setCommand('');
+      } else {
+        showToast(
+          'Disconnected',
+          'The connection to the terminal service has been lost. Attempting to reconnect...',
+          'warning'
+        );
       }
     }
   };
@@ -55,7 +100,7 @@ const Terminal: React.FC = () => {
         borderRadius="md"
         p={4}
         flexGrow={1}
-        bg="#44337A"
+        bg="#1a202c"
         color="white"
         fontFamily="monospace"
         overflowY="auto"
@@ -63,14 +108,13 @@ const Terminal: React.FC = () => {
       >
         {output}
       </Box>
-      <Box borderTopWidth={1} borderTopColor="gray.700" p={2} bg="#322659">
+      <Box borderTopWidth={1} borderTopColor="#2d3748" p={2} bg="#2d3748">
         <Input
           placeholder="Enter terminal commands"
           color="white"
           fontFamily="monospace"
           border="none"
           _focus={{ boxShadow: 'none' }}
-          px={0}
           value={command}
           onChange={(e) => setCommand(e.target.value)}
           onKeyPress={handleSendCommand}
