@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Input, Button, VStack, Box } from '@chakra-ui/react';
+import { VStack, Input, Button, Box, useColorModeValue } from '@chakra-ui/react';
 
 const Browser = () => {
   const [url, setUrl] = useState('');
@@ -16,26 +16,36 @@ const Browser = () => {
     setVideo(videoUrl);
   };
 
+  const inputBg = useColorModeValue('white', 'gray.700');
+  const buttonBg = useColorModeValue('violet.300', 'violet.500');
+  const buttonHoverBg = useColorModeValue('violet.400', 'violet.600');
+
   return (
-    <VStack spacing={2}>
+    <VStack spacing={4} align="stretch" h="100%" p={4}>
       <Input
         value={url}
-        onChange={e => setUrl(e.target.value)}
+        onChange={(e) => setUrl(e.target.value)}
         placeholder="Enter URL"
+        bg={inputBg}
       />
-      <Input 
+      <Input
         value={script}
-        onChange={e => setScript(e.target.value)}
+        onChange={(e) => setScript(e.target.value)}
         placeholder="Enter custom script"
+        bg={inputBg}
       />
-      <Button onClick={handleRunAutomation} colorScheme="blue">Run Automation</Button>
+      <Button
+        onClick={handleRunAutomation}
+        bg={buttonBg}
+        _hover={{ bg: buttonHoverBg }}
+        color="white"
+      >
+        Go
+      </Button>
       
       {video && (
-        <Box>
-          <video src={video} controls width="100%" />
-        </Box>
+        <Box as="video" src={video} controls width="100%" mt={4} />
       )}
-
     </VStack>
   );
 };

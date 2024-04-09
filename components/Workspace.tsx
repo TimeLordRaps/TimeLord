@@ -1,21 +1,29 @@
-import React from 'react';
-import Browser from './Browser';
+import { Grid, GridItem } from '@chakra-ui/react';
 import Chat from './Chat';
+import Browser from './Browser';
 import Editor from './Editor';
 import Terminal from './Terminal';
 
 const Workspace: React.FC = () => {
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 h-screen p-4">
-      <div className="flex flex-col">
+    <Grid templateColumns="1fr 1fr" h="100vh">
+      <GridItem>
         <Chat />
-      </div>
-      <div className="flex flex-col">
-        <Browser />
-        <Editor />
-        <Terminal />
-      </div>
-    </div>
+      </GridItem>
+      <GridItem>
+        <Grid templateRows="30% 50% 20%" h="100%">
+          <GridItem>
+            <Browser />
+          </GridItem>
+          <GridItem>
+            <Editor />
+          </GridItem>
+          <GridItem>
+            <Terminal />
+          </GridItem>
+        </Grid>
+      </GridItem>
+    </Grid>
   );
 };
 

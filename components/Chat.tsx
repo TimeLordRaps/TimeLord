@@ -1,25 +1,33 @@
 import React from 'react';
-import { Box, Heading, Text, Input, Button, VStack } from '@chakra-ui/react';
+import { Box, VStack, Input, Button, useColorModeValue } from '@chakra-ui/react';
 
-const Chat: React.FC = () => {
+const Chat = () => {
+  const boxBg = useColorModeValue('violet.50', 'gray.700');
+  const inputBg = useColorModeValue('white', 'gray.600');
+  const buttonBg = useColorModeValue('violet.300', 'violet.500');
+  const buttonHoverBg = useColorModeValue('violet.400', 'violet.600');
+
   return (
-    <Box border="1px" borderRadius="md" p={4} mb={4}>
-      <Heading size="lg" mb={4}>Chat</Heading>
-      <VStack align="stretch" spacing={2} mb={4} overflowY="auto" flexGrow={1}>
-        <Box>
-          <Text fontWeight="bold">Contact 1:</Text>
-          <Text>Last message</Text>  
-        </Box>
-        <Box>
-          <Text fontWeight="bold">Contact 2:</Text>
-          <Text>Last message</Text>
-        </Box>
-      </VStack>
-      <Box display="flex">
-        <Input placeholder="Search messages or contacts" size="sm" mr={2} flexGrow={1} />
-        <Button colorScheme="blue" size="sm">Search</Button>
+    <VStack spacing={4} align="stretch" h="100%" p={4}>
+      <Box bg={boxBg} borderRadius="md" p={4} flexGrow={1}>
+        <VStack align="stretch" spacing={2} flexGrow={1}>
+          <Box>
+            <Box fontWeight="bold">Contact 1:</Box>
+            <Box>Last message</Box>  
+          </Box>
+          <Box>
+            <Box fontWeight="bold">Contact 2:</Box>
+            <Box>Last message</Box>
+          </Box>
+        </VStack>
       </Box>
-    </Box>
+      <Box>
+        <Input placeholder="Search messages or contacts" bg={inputBg} size="sm" />
+        <Button bg={buttonBg} _hover={{ bg: buttonHoverBg }} color="white" size="sm">
+          Search
+        </Button>
+      </Box>
+    </VStack>
   );
 };
 

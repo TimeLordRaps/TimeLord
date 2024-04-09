@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import FileManager from './FileManager';
-import { Box, VStack, HStack, Heading, Button, IconButton } from '@chakra-ui/react';
-import { FaSave, FaUndo, FaRedo, FaFileCode } from 'react-icons/fa';
+import { VStack, HStack, Box } from '@chakra-ui/react';
 import Editor, { OnChange } from '@monaco-editor/react';
 
 const EditorComponent: React.FC = () => {
@@ -57,47 +56,29 @@ const EditorComponent: React.FC = () => {
   };
 
   return (
-    <HStack align="stretch" spacing={4} h="100%">
-      <Box borderWidth={1} borderRadius="md" p={4} h="100%" w="300px" bg="gray.50">
-        <Heading size="md" mb={4}>Files</Heading>
+    <HStack align="stretch" spacing={4} h="100%" p={4}>
+      <Box borderWidth={1} borderRadius="md" p={4} h="100%" w="200px" bg="gray.50">
         <FileManager onFileClick={handleFileClick} />
       </Box>
       <VStack align="stretch" flexGrow={1} spacing={0}>
-        {selectedFile ? (
-          <>
-            <HStack justify="space-between" p={2} bg="gray.100">
-              <Heading size="md">{selectedFile.name}</Heading>
-              <HStack>
-                <IconButton icon={<FaSave />} aria-label="Save" onClick={handleSaveFile} colorScheme="blue" size="sm" />
-                <IconButton icon={<FaUndo />} aria-label="Undo" size="sm" />
-                <IconButton icon={<FaRedo />} aria-label="Redo" size="sm" />
-              </HStack>
-            </HStack>
-            <Box flexGrow={1}>
-              <Editor
-                height="100%"
-                language={getLanguage(selectedFile.name)}
-                theme="vs-dark"
-                value={fileContent}
-                onChange={handleEditorChange}
-                options={{
-                  selectOnLineNumbers: true,
-                  fontSize: 14,
-                  scrollBeyondLastLine: false,
-                  wordWrap: "on",
-                  formatOnPaste: true,
-                  minimap: { enabled: false },
-                }}
-              />
-            </Box>
-            <HStack justify="space-between" p={1} bg="gray.900" color="white" fontSize="sm">
-              <Box>Line 1, Column 1</Box>
-              <Box>Spaces: 2</Box>
-              <Box>UTF-8</Box>
-            </HStack>
-          </>
-        ) : (
-          <Box p={4}>Select a file to view its content.</Box>
+        {selectedFile && (
+          <Box flexGrow={1}>
+            <Editor
+              height="100%"
+              language={getLanguage(selectedFile.name)}
+              theme="vs-dark"
+              value={fileContent}
+              onChange={handleEditorChange}
+              options={{
+                selectOnLineNumbers: true,
+                fontSize: 14,
+                scrollBeyondLastLine: false,
+                wordWrap: "on",
+                formatOnPaste: true,
+                minimap: { enabled: false },
+              }}
+            />
+          </Box>
         )}
       </VStack>
     </HStack>

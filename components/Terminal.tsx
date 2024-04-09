@@ -1,17 +1,17 @@
 import React from 'react';
-import { VStack, Input, Button, Box } from '@chakra-ui/react';
+import { VStack, HStack, Box, Input, Button } from '@chakra-ui/react';
 
 const Terminal: React.FC = () => {
   return (
-    <VStack align="stretch">
-      <Box borderWidth={1} borderRadius="md" p={4} mb={4} minH={150}>
+    <VStack align="stretch" h="100%">
+      <Box borderWidth={1} borderRadius="md" p={4} flexGrow={1}>
         Terminal output will be displayed here.
       </Box>
-      <VStack align="stretch">
-        <Input placeholder="Enter terminal commands" />
-        <Button colorScheme="gray">Stop</Button>
-        <Button colorScheme="blue">Send</Button>
-      </VStack>
+      <HStack>
+        <Input placeholder="Enter terminal commands" flexGrow={1} />
+        <Button colorScheme="red" size="sm">Stop</Button>
+        <Button colorScheme="blue" size="sm">Send</Button>
+      </HStack>
     </VStack>
   );
 };
