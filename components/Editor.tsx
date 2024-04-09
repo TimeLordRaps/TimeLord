@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import FileNavigator from '@nolesh/react-file-manager';
-import { Box, VStack, HStack, Heading, Button } from '@chakra-ui/react';
+import FileManager from './FileManager';
+import { Box, VStack, HStack, Heading, Button, IconButton } from '@chakra-ui/react';
+import { FaSave, FaUndo, FaRedo, FaFileCode } from 'react-icons/fa';
 import Editor, { OnChange } from '@monaco-editor/react';
 
 const EditorComponent: React.FC = () => {
@@ -57,21 +58,22 @@ const EditorComponent: React.FC = () => {
 
   return (
     <HStack align="stretch" spacing={4} h="100%">
-      <Box borderWidth={1} borderRadius="md" p={4} h="100%" w="300px">
+      <Box borderWidth={1} borderRadius="md" p={4} h="100%" w="300px" bg="gray.50">
         <Heading size="md" mb={4}>Files</Heading>
-        <FileNavigator 
-          files={files}
-          onFileClick={handleFileClick}
-        />
+        <FileManager onFileClick={handleFileClick} />
       </Box>
-      <VStack align="stretch" flexGrow={1} spacing={4}>
+      <VStack align="stretch" flexGrow={1} spacing={0}>
         {selectedFile ? (
           <>
-            <HStack justify="space-between">
+            <HStack justify="space-between" p={2} bg="gray.100">
               <Heading size="md">{selectedFile.name}</Heading>
-              <Button onClick={handleSaveFile} colorScheme="blue">Save</Button>
+              <HStack>
+                <IconButton icon={<FaSave />} aria-label="Save" onClick={handleSaveFile} colorScheme="blue" size="sm" />
+                <IconButton icon={<FaUndo />} aria-label="Undo" size="sm" />
+                <IconButton icon={<FaRedo />} aria-label="Redo" size="sm" />
+              </HStack>
             </HStack>
-            <Box borderWidth={1} borderRadius="md" p={4} h="100%">
+            <Box flexGrow={1}>
               <Editor
                 height="100%"
                 language={getLanguage(selectedFile.name)}
@@ -88,9 +90,14 @@ const EditorComponent: React.FC = () => {
                 }}
               />
             </Box>
+            <HStack justify="space-between" p={1} bg="gray.900" color="white" fontSize="sm">
+              <Box>Line 1, Column 1</Box>
+              <Box>Spaces: 2</Box>
+              <Box>UTF-8</Box>
+            </HStack>
           </>
         ) : (
-          <Box>Select a file to view its content.</Box>
+          <Box p={4}>Select a file to view its content.</Box>
         )}
       </VStack>
     </HStack>

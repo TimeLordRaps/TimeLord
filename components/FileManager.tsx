@@ -4,20 +4,16 @@ import {
   AccordionItem,
   AccordionButton,
   AccordionPanel,
-  AccordionIcon,
   Box,
   List,
-  ListItem,
-  ListIcon,
-  Link,
+  Icon,
   Input,
   InputGroup,
   InputLeftElement,
-  Icon,
 } from '@chakra-ui/react';
-import { FiFolder, FiFile, FiSearch } from 'react-icons/fi';
+import { FiFolder, FiFile, FiSearch, FiChevronDown, FiChevronRight } from 'react-icons/fi';
 
-const FileManager = () => {
+const FileManager = ({ onFileClick }) => {
   const [files, setFiles] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [expandedItems, setExpandedItems] = useState([]);
@@ -34,34 +30,23 @@ const FileManager = () => {
 
   const handleFileUpload = async (event) => {
     const file = event.target.files[0];
-    // Implement file upload logic here
-  };
+    const formData = new FormData();
+    formData.append('file', file);
 
-  const renderFileTree = (files) => {
-    return files.map((file) => (
-      <AccordionItem key={file.path}>
-        <AccordionButton
-          onClick={() => toggleExpandedItem(file.path)}
-          _expanded={{ bg: 'teal.500', color: 'white' }}
-        >
-          <Box flex="1" textAlign="left">
-            <ListIcon as={file.isDirectory ? FiFolder : FiFile} />
-            {file.name}
-          </Box>
-          {file.isDirectory && <AccordionIcon />}
-        </AccordionButton>
-        {file.isDirectory && (
-          <AccordionPanel>
-            <List>{renderFileTree(file.children)}</List>
-          </AccordionPanel>
-        )}
-        {!file.isDirectory && (
-          <Link href={`/api/files?file=${file.path}`} download>
-            Download
-          </Link>
-        )}
-      </AccordionItem>
-    ));
+    try {
+      const response = await fetch('/api/files', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (response.ok) {
+        fetchFiles();
+      } else {
+        console.error('File upload failed.');
+      }
+    } catch (error) {
+      console.error('Error uploading file:', error);
+    }
   };
 
   const searchFiles = (files, term) => {
@@ -90,6 +75,39 @@ const FileManager = () => {
     });
   };
 
+  const isExpanded = (path) => {
+    return expandedItems.includes(path);
+  };
+
+  const renderFileTree = (files) => {
+    return files.map((file) => (
+      <AccordionItem key={file.path}>
+        <AccordionButton
+          onClick={() => {
+            toggleExpandedItem(file.path);
+            if (!file.isDirectory) {
+              onFileClick(file);
+            }
+          }}
+          _hover={{ bg: 'gray.100' }}
+          px={2}
+          py={1}
+        >
+          <Icon as={file.isDirectory ? FiFolder : FiFile} color={file.isDirectory ? 'blue.500' : 'gray.500'} mr={2} />
+          <Box flex="1" textAlign="left" fontSize="sm">
+            {file.name}
+          </Box>
+          {file.isDirectory && <Icon as={isExpanded(file.path) ? FiChevronDown : FiChevronRight} />}
+        </AccordionButton>
+        {file.isDirectory && (
+          <AccordionPanel pl={4}>
+            <List spacing={1}>{renderFileTree(file.children)}</List>
+          </AccordionPanel>
+        )}
+      </AccordionItem>
+    ));
+  };
+
   return (
     <Box>
       <InputGroup mb={4}>
@@ -104,8 +122,10 @@ const FileManager = () => {
       </InputGroup>
       <Input type="file" onChange={handleFileUpload} mb={4} />
       <Accordion allowMultiple index={expandedItems}>
-        {renderFileTree(filteredFiles)}
+        <List spacing={1}>{renderFileTree(filteredFiles)}</List>
       </Accordion>
     </Box>
   );
 };
+
+export default FileManager;

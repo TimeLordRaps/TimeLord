@@ -2,7 +2,30 @@ import { NextApiRequest, NextApiResponse } from 'next';
 import fs from 'fs';
 import path from 'path';
 
-const workspacePath = './workspace'; // Update with your actual workspace directory
+const workspacePath = process.env.FILE_STORAGE_PATH || './workspace';
+
+const readFileTree = (dirPath: string) => {
+  const files = fs.readdirSync(dirPath);
+  const fileTree = files.map(file => {
+    const filePath = path.join(dirPath, file);
+    const stats = fs.statSync(filePath);
+    if (stats.isDirectory()) {
+      return {
+        name: file,
+        path: filePath,
+        isDirectory: true,
+        children: readFileTree(filePath),
+      };
+    } else {
+      return {
+        name: file,
+        path: filePath,
+        isDirectory: false,
+      };
+    }
+  });
+  return fileTree;
+};
 
 export default function handler(req: NextApiRequest, res: NextApiResponse) {
   const { method, query } = req;
@@ -20,18 +43,9 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
           }
         });
       } else {
-        // Read all files in the workspace directory
-        fs.readdir(workspacePath, (err, files) => {
-          if (err) {
-            res.status(500).json({ message: 'Error reading workspace directory' });
-          } else {
-            const fileList = files.map(file => ({
-              name: file,
-              path: path.join(workspacePath, file),
-            }));
-            res.status(200).json({ files: fileList });
-          }
-        });
+        // Read the file tree
+        const fileTree = readFileTree(workspacePath);
+        res.status(200).json({ files: fileTree });
       }
       break;
 

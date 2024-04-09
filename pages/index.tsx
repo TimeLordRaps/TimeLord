@@ -6,15 +6,25 @@ import Terminal from '../components/Terminal';
 
 export default function Home() {
   return (
-    <Grid templateColumns={{base: "1fr", md: "1fr 1fr"}} gap={4} h="100vh" p={4}>
-      <GridItem>
+    <Grid
+      templateColumns={{ base: "1fr", md: "1fr 1fr" }}
+      templateRows="repeat(2, 1fr)"
+      gap={4}
+      h="100vh"
+      p={4}
+    >
+      <GridItem colSpan={{ base: 1, md: 1 }}>
         <Chat />
       </GridItem>
-      <Grid templateRows="auto 1fr auto" gap={4}>
+      <GridItem colSpan={{ base: 1, md: 1 }}>
         <Browser />
-        <Editor />  
+      </GridItem>
+      <GridItem colSpan={{ base: 1, md: 2 }}>
+        <Editor />
+      </GridItem>
+      <GridItem colSpan={{ base: 1, md: 2 }}>
         <Terminal />
-      </Grid>
+      </GridItem>
     </Grid>
   )
 }
