@@ -1,10 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import FileNavigator from '@nolesh/react-file-manager';
-
 import { Box, VStack, HStack, Heading, Button } from '@chakra-ui/react';
-import MonacoEditor from 'react-monaco-editor';
+import Editor, { OnChange } from '@monaco-editor/react';
 
-const Editor: React.FC = () => {
+const EditorComponent: React.FC = () => {
   const [files, setFiles] = useState([]);
   const [selectedFile, setSelectedFile] = useState(null);
   const [fileContent, setFileContent] = useState('');
@@ -52,13 +51,8 @@ const Editor: React.FC = () => {
     }
   };
 
-  const options = {
-    selectOnLineNumbers: true,
-    fontSize: 14,
-    scrollBeyondLastLine: false,
-    wordWrap: "on",
-    formatOnPaste: true,
-    minimap: { enabled: false },
+  const handleEditorChange: OnChange = (value, event) => {
+    setFileContent(value);
   };
 
   return (
@@ -78,13 +72,20 @@ const Editor: React.FC = () => {
               <Button onClick={handleSaveFile} colorScheme="blue">Save</Button>
             </HStack>
             <Box borderWidth={1} borderRadius="md" p={4} h="100%">
-              <MonacoEditor
+              <Editor
+                height="100%"
                 language={getLanguage(selectedFile.name)}
                 theme="vs-dark"
                 value={fileContent}
-                options={options}
-                onChange={setFileContent}
-                height="100%"
+                onChange={handleEditorChange}
+                options={{
+                  selectOnLineNumbers: true,
+                  fontSize: 14,
+                  scrollBeyondLastLine: false,
+                  wordWrap: "on",
+                  formatOnPaste: true,
+                  minimap: { enabled: false },
+                }}
               />
             </Box>
           </>
@@ -96,4 +97,4 @@ const Editor: React.FC = () => {
   );
 };
 
-export default Editor;
+export default EditorComponent;
