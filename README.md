@@ -11,9 +11,9 @@ timelord saves you time.
 - **Open Framework Integration:** Utilizes frameworks like Langchain, Ollama, and CopilotKit to enhance AI-driven code suggestions and automations.
 
 ## Technology Stack
-- **Frontend:** ReactJS, Tailwind CSS
-- **Backend:** Node.js, Express
-- **AI and ML Frameworks:** Langchain, Ollama, CopilotKit
+- **Frontend:** ReactJS, ChakraUI
+- **Backend:** Node.js, Express, Socketio
+- **AI and ML Frameworks:** LangGraph, Ollama
 - **Testing and Automation:** Playwright
 - **Version Control:** Git
 
