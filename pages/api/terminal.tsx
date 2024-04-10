@@ -1,42 +1,44 @@
 // pages/api/terminal.tsx
+import { NextApiHandler } from 'next';
+import { Server } from 'http';
+import { WebSocketServer } from 'ws';
 import { exec } from 'child_process';
-import { Server as SocketIOServer } from 'socket.io';
 
-export default function handler(req, res) {
-  if (res.socket.server.io) {
-    console.log('Socket.io is already running.');
-    res.end();
-    return;
-  }
+const handler: NextApiHandler = (req, res) => {
+  if (!res.socket.server.io) {
+    const server = res.socket.server as unknown as Server;
+    const wss = new WebSocketServer({ server, path: '/api/terminal' });
 
-  const io = new SocketIOServer(res.socket.server);
-  res.socket.server.io = io;
+    wss.on('connection', (ws) => {
+      console.log('Client connected');
 
-  io.on('connection', (socket) => {
-    console.log('A client has connected.');
+      ws.on('message', (message) => {
+        const command = message.toString();
+        exec(`docker exec -i terminal sh -c "${command}"`, (error, stdout, stderr) => {
+          if (error) {
+            console.error(`Exec error: ${error}`);
+            ws.send(`Exec error: ${error.message}`);
+            return;
+          }
+          if (stderr) {
+            console.error(`Stderr: ${stderr}`);
+            ws.send(`Stderr: ${stderr}`);
+            return;
+          }
+          console.log(`Stdout: ${stdout}`);
+          ws.send(stdout);
+        });
+      });
 
-    socket.on('command', (command) => {
-      exec(command, (error, stdout, stderr) => {
-        if (error) {
-          console.error(`Exec error: ${error}`);
-          socket.emit('output', `Exec error: ${error.message}`);
-          return;
-        }
-        if (stderr) {
-          console.error(`Stderr: ${stderr}`);
-          socket.emit('output', `Stderr: ${stderr}`);
-          return;
-        }
-        console.log(`Stdout: ${stdout}`);
-        socket.emit('output', stdout);
+      ws.on('close', () => {
+        console.log('Client disconnected');
       });
     });
 
-    socket.on('disconnect', () => {
-      console.log('A client has disconnected.');
-    });
-  });
+    res.socket.server.io = wss;
+  }
 
-  console.log('Socket.io has been initialized.');
   res.end();
-}
+};
+
+export default handler;

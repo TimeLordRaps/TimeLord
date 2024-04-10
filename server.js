@@ -1,5 +1,5 @@
 // server.js
-const { execSync } = require('child_process');
+const { execSync, exec } = require('child_process');
 const next = require('next');
 const { createServer } = require('http');
 const { parse } = require('url');
@@ -15,7 +15,13 @@ const startDockerTerminal = () => {
     console.log('Docker is available, starting terminal service...');
     
     // Start the Docker terminal service
-    execSync('docker-compose up -d terminal', { stdio: 'inherit' });
+    exec('docker-compose up -d terminal', { stdio: 'inherit' }, (error, stdout, stderr) => {
+      if (error) {
+        console.error('Error starting terminal service:', error);
+        return;
+      }
+      console.log('Terminal service started successfully:', stdout);
+    });
   } catch (error) {
     console.log('Docker is not available, skipping terminal service startup.');
   }
@@ -23,12 +29,29 @@ const startDockerTerminal = () => {
 
 app.prepare().then(() => {
   startDockerTerminal();
-
-  createServer((req, res) => {
+  
+  const server = createServer((req, res) => {
     const parsedUrl = parse(req.url, true);
     handle(req, res, parsedUrl);
-  }).listen(process.env.PORT || 3000, (err) => {
+  });
+
+  server.listen(process.env.PORT || 3000, err => {
     if (err) throw err;
     console.log(`> Ready on http://localhost:${process.env.PORT || 3000}`);
+  });
+
+  // Handle SIGINT (Ctrl+C)
+  process.on('SIGINT', async () => {
+    console.log('Shutting down gracefully...');
+    server.close(() => {
+      try {
+        execSync('docker-compose stop terminal');
+        console.log('Docker containers stopped.');
+      } catch (error) {
+        console.error('Failed to stop Docker containers:', error);
+      }
+      console.log('Server has been shut down.');
+      process.exit();
+    });
   });
 });
