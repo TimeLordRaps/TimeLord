@@ -1,5 +1,10 @@
+# Dockerfile
+
 # Use the official Node.js 18 image as a parent image
 FROM node:18-alpine
+
+# Install tmux
+RUN apk update && apk add tmux
 
 # Set the working directory in the container
 WORKDIR /app
@@ -13,8 +18,11 @@ RUN npm install
 # Copy the rest of your application code
 COPY . .
 
+# Set the DOCKERIZED environment variable
+ENV DOCKERIZED=true
+
 # Expose port 3000 to access server
 EXPOSE 3000
 
-# Command to run your app
+# Start the application
 CMD ["npm", "run", "dev"]

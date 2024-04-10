@@ -1,108 +1,32 @@
-// components/Terminal.tsx
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useRef } from 'react';
 import { VStack, Box, Input, useToast } from '@chakra-ui/react';
 
 const Terminal = () => {
   const [command, setCommand] = useState('');
   const [output, setOutput] = useState('');
-  const [socket, setSocket] = useState(null);
-  const terminalRef = useRef(null);
   const toast = useToast();
-  const toastIdRef = useRef();
+  const terminalRef = useRef<HTMLDivElement>(null);
 
-  const showToast = useCallback((title, description, status) => {
-    if (!toastIdRef.current) {
-      toastIdRef.current = toast({
-        title,
-        description,
-        status,
-        duration: null,
-        isClosable: true,
-        onCloseComplete: () => {
-          toastIdRef.current = undefined;
-        },
-      });
-    }
-  }, [toast]);
-
-  useEffect(() => {
-    const newSocket = new WebSocket('ws://localhost:3000/api/terminal');
-
-    setSocket(newSocket);
-
-    let retryCount = 0;
-    const retryConnection = () => {
-      if (retryCount < 5) {
-        console.log(`Retrying connection (attempt ${retryCount + 1})...`);
-        newSocket.close();
-        newSocket.open();
-        retryCount++;
-      } else {
-        console.error('Failed to establish connection after multiple attempts.');
-        showToast(
-          'Connection Error',
-          'Unable to establish a stable connection to the terminal service.',
-          'error'
-        );
-      }
-    };
-
-    newSocket.onopen = () => {
-      console.log('Connected to the terminal service.');
-      if (toastIdRef.current) {
-        toast.close(toastIdRef.current);
-        toastIdRef.current = undefined;
-      }
-      retryCount = 0;
-    };
-
-    newSocket.onerror = (error) => {
-      console.error('WebSocket connection error:', error);
-      showToast(
-        'Connection Error',
-        'Unable to connect to the terminal service. Please ensure Docker is running.',
-        'error'
-      );
-      setTimeout(retryConnection, 2000);
-    };
-
-    newSocket.onmessage = (event) => {
-      setOutput((prevOutput) => prevOutput + '\n' + event.data);
-    };
-
-    newSocket.onclose = () => {
-      console.log('Disconnected from the terminal service.');
-      showToast(
-        'Disconnected',
-        'The connection to the terminal service has been lost.',
-        'warning'
-      );
-    };
-
-    return () => {
-      newSocket.close();
-    };
-  }, [showToast]);
-
-  useEffect(() => {
-    if (terminalRef.current) {
-      terminalRef.current.scrollTop = terminalRef.current.scrollHeight;
-    }
-  }, [output]);
-
-  const handleSendCommand = (e) => {
+  const handleSendCommand = async (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' && command.trim()) {
-      if (socket && socket.readyState === WebSocket.OPEN) {
-        socket.send(command);
-        setOutput((prevOutput) => `${prevOutput}\n$ ${command}`);
-        setCommand('');
-      } else {
-        showToast(
-          'Disconnected',
-          'The connection to the terminal service has been lost. Attempting to reconnect...',
-          'warning'
-        );
+      try {
+        const response = await fetch('/api/terminal', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ command })
+        });
+        const result = await response.json();
+        if (response.ok) {
+          setOutput(prevOutput => `${prevOutput}\n$ ${command}\n${result.stdout}`);
+        } else {
+          setOutput(prevOutput => `${prevOutput}\n$ ${command}\nError: ${result.message}`);
+        }
+      } catch (error) {
+        setOutput(prevOutput => `${prevOutput}\n$ ${command}\nError: Unable to connect to server.`);
       }
+      setCommand('');
     }
   };
 

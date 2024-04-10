@@ -9,7 +9,6 @@ services:
     environment:
       - NODE_ENV=development
       - FILE_STORAGE_PATH=${FILE_STORAGE_PATH:-./workspace}
-    command: npm run dev
     depends_on:
       - terminal
 
@@ -18,7 +17,7 @@ services:
     volumes:
       - ${FILE_STORAGE_PATH:-./workspace}:/workspace
     working_dir: /workspace
-    command: sh -c "while true; do sleep 30; done;"
+    command: sh
     environment:
       - NODE_ENV=development
     tty: true
