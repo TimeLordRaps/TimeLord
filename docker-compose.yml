@@ -25,4 +25,3 @@ services:
     stdin_open: true
     environment:
       - NODE_ENV=development
-    command: sh -c "tmux new-session -d -s timelord; while true; do sleep 3600; done"

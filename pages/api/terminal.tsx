@@ -2,7 +2,7 @@ import { NextApiHandler } from 'next';
 import { execSync, spawn } from 'child_process';
 
 const TMUX_SESSION_NAME = 'timelord';
-const DOCKER_CONTAINER_NAME = 'terminal';  // Update to match your Docker Compose service name
+const DOCKER_CONTAINER_NAME = 'terminal';
 
 const handler: NextApiHandler = (req, res) => {
   if (req.method === 'POST') {
@@ -22,7 +22,6 @@ const handler: NextApiHandler = (req, res) => {
 
 function ensureDockerService() {
   try {
-    // Checks if the service is running; if not, starts or restarts the service
     const status = execSync(`docker-compose ps ${DOCKER_CONTAINER_NAME}`).toString();
     if (!status.includes('Up')) {
       execSync(`docker-compose up -d ${DOCKER_CONTAINER_NAME}`);
@@ -35,10 +34,14 @@ function ensureDockerService() {
 
 function ensureTmuxSessionExists() {
   try {
-    // Checks if a tmux session exists, if not, creates it
-    execSync(`docker-compose exec ${DOCKER_CONTAINER_NAME} tmux has-session -t ${TMUX_SESSION_NAME}`);
+    const result = execSync(`docker-compose exec ${DOCKER_CONTAINER_NAME} tmux has-session -t ${TMUX_SESSION_NAME} 2>&1 || true`).toString().trim();
+    if (result.includes('no server running on')) {
+      console.warn('tmux session does not exist, creating a new one');
+      execSync(`docker-compose exec ${DOCKER_CONTAINER_NAME} tmux new-session -d -s ${TMUX_SESSION_NAME}`);
+    }
   } catch (error) {
-    execSync(`docker-compose exec ${DOCKER_CONTAINER_NAME} tmux new-session -d -s ${TMUX_SESSION_NAME}`);
+    console.error('Failed to ensure tmux session exists:', error);
+    throw new Error(`Failed to ensure tmux session exists: ${error.message}`);
   }
 }
 
@@ -60,28 +63,29 @@ function setupSSE(res: NextApiResponse) {
 }
 
 function executeCommandInTmux(command: string, res: NextApiResponse) {
-  res.writeHead(200, {
-    'Content-Type': 'text/event-stream',
-    'Cache-Control': 'no-cache',
-    'Connection': 'keep-alive',
-  });
+  console.log('Received command:', command);
 
   const escapedCommand = command.replace(/'/g, "'\\''");
   const tmuxSendKeys = `tmux send-keys -t ${TMUX_SESSION_NAME} '${escapedCommand}' Enter`;
   const tmuxCapturePane = `tmux capture-pane -p -J -t ${TMUX_SESSION_NAME}`;
-  const dockerCommand = `docker-compose exec -T ${DOCKER_CONTAINER_NAME} bash -c "${tmuxSendKeys}; ${tmuxCapturePane}"`;
+  const dockerCommand = `docker-compose exec -T ${DOCKER_CONTAINER_NAME} bash -c "${tmuxSendKeys} && sleep 1 && ${tmuxCapturePane}"`;
 
-  const process = spawn('bash', ['-c', dockerCommand]);
+  const child = spawn('docker-compose', ['exec', '-T', DOCKER_CONTAINER_NAME, 'bash', '-c', `${tmuxSendKeys} && sleep 1 && ${tmuxCapturePane}`]);
 
-  process.stdout.on('data', (data) => {
-    res.write(`data: ${data.toString()}\n\n`);
+  child.stdout.setEncoding('utf8');
+  child.stdout.on('data', (data) => {
+    console.log('stdout:', data);
+    res.write(`data: ${data}\n\n`);
   });
 
-  process.stderr.on('data', (data) => {
-    res.write(`data: ${data.toString()}\n\n`);
+  child.stderr.setEncoding('utf8');
+  child.stderr.on('data', (data) => {
+    console.error('stderr:', data);
+    res.write(`data: ${data}\n\n`);
   });
 
-  process.on('close', (code) => {
+  child.on('close', (code) => {
+    console.log('Closing code:', code);
     res.write(`data: Command exited with code ${code}\n\n`);
     res.end();
   });

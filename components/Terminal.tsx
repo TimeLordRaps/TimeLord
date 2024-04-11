@@ -24,8 +24,9 @@ const Terminal = () => {
 
   const handleSendCommand = async () => {
     if (command.trim()) {
+      setOutput((prevOutput) => `${prevOutput}$ ${command}\n`);
       try {
-        const response = await fetch('/api/terminal', {
+        await fetch('/api/terminal', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -50,7 +51,7 @@ const Terminal = () => {
         color="white"
         fontFamily="monospace"
         overflowY="auto"
-        whiteSpace="pre-wrap"
+        whiteSpace="pre"
       >
         {output}
       </Box>
