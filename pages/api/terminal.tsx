@@ -1,5 +1,5 @@
 import { NextApiHandler } from 'next';
-import { execSync, spawn } from 'child_process';
+import { execSync } from 'child_process';
 
 const TMUX_SESSION_NAME = 'timelord';
 const DOCKER_CONTAINER_NAME = 'terminal';
@@ -68,27 +68,26 @@ function executeCommandInTmux(command: string, res: NextApiResponse) {
   const escapedCommand = command.replace(/'/g, "'\\''");
   const tmuxSendKeys = `tmux send-keys -t ${TMUX_SESSION_NAME} '${escapedCommand}' Enter`;
   const tmuxCapturePane = `tmux capture-pane -p -J -t ${TMUX_SESSION_NAME}`;
-  const dockerCommand = `docker-compose exec -T ${DOCKER_CONTAINER_NAME} bash -c "${tmuxSendKeys} && sleep 1 && ${tmuxCapturePane}"`;
+  const tmuxClearPane = `tmux clear-history -t ${TMUX_SESSION_NAME}`;
+  const dockerCommand = `docker-compose exec -T ${DOCKER_CONTAINER_NAME} bash -c "${tmuxSendKeys} && sleep 1 && ${tmuxCapturePane} && ${tmuxClearPane}"`;
 
-  const child = spawn('docker-compose', ['exec', '-T', DOCKER_CONTAINER_NAME, 'bash', '-c', `${tmuxSendKeys} && sleep 1 && ${tmuxCapturePane}`]);
+  try {
+    const output = execSync(dockerCommand).toString();
 
-  child.stdout.setEncoding('utf8');
-  child.stdout.on('data', (data) => {
-    console.log('stdout:', data);
-    res.write(`data: ${data}\n\n`);
-  });
+    const lines = output.trim().split('\n');
+    const promptRegex = /^root@.*?#\s*/;
+    const commandOutputLines = lines.filter((line) => line.trim() && !promptRegex.test(line));
+    const formattedOutput = commandOutputLines.join('\n');
 
-  child.stderr.setEncoding('utf8');
-  child.stderr.on('data', (data) => {
-    console.error('stderr:', data);
-    res.write(`data: ${data}\n\n`);
-  });
-
-  child.on('close', (code) => {
-    console.log('Closing code:', code);
-    res.write(`data: Command exited with code ${code}\n\n`);
+    console.log('Formatted output:', formattedOutput);
+    res.write(`data: ${formattedOutput}\n\n`);
+    res.write(`data: Command executed successfully\n\n`);
     res.end();
-  });
+  } catch (error) {
+    console.error('Error executing command:', error);
+    res.write(`data: Error executing command: ${error.message}\n\n`);
+    res.end();
+  }
 }
 
 export default handler;

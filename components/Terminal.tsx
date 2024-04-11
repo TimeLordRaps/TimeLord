@@ -4,12 +4,13 @@ import { VStack, Box, Input } from '@chakra-ui/react';
 const Terminal = () => {
   const [command, setCommand] = useState('');
   const [output, setOutput] = useState('');
+  const terminalRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const eventSource = new EventSource('/api/terminal');
 
     eventSource.onmessage = (event) => {
-      setOutput((prevOutput) => `${prevOutput}${event.data}`);
+      setOutput((prevOutput) => `${prevOutput}${event.data}\n`);
     };
 
     eventSource.onerror = (error) => {
@@ -22,18 +23,31 @@ const Terminal = () => {
     };
   }, []);
 
+  useEffect(() => {
+    if (terminalRef.current) {
+      terminalRef.current.scrollTop = terminalRef.current.scrollHeight;
+    }
+  }, [output]);
+
   const handleSendCommand = async () => {
     if (command.trim()) {
       setOutput((prevOutput) => `${prevOutput}$ ${command}\n`);
       try {
-        await fetch('/api/terminal', {
+        const response = await fetch('/api/terminal', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({ command }),
         });
-        setCommand('');
+
+        if (response.ok) {
+          const data = await response.text();
+          setOutput((prevOutput) => `${prevOutput}${data}\n`);
+          setCommand('');
+        } else {
+          console.error('Error sending command:', response.statusText);
+        }
       } catch (error) {
         console.error('Error sending command:', error);
       }
@@ -43,6 +57,7 @@ const Terminal = () => {
   return (
     <VStack align="stretch" h="100%" spacing={0}>
       <Box
+        ref={terminalRef}
         borderWidth={1}
         borderRadius="md"
         p={4}

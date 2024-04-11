@@ -4,5 +4,8 @@ FROM ubuntu:latest
 # Install necessary packages
 RUN apt-get update && apt-get install -y tmux
 
+# Set the working directory in the container
+WORKDIR /workspace
+
 # Set a long-running command to keep the container active
 CMD ["sh", "-c", "tmux new-session -d -s timelord; tail -f /dev/null"]
