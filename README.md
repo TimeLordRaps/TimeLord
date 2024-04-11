@@ -12,7 +12,7 @@ timelord saves you time.
 
 ## Technology Stack
 - **Frontend:** ReactJS, ChakraUI
-- **Backend:** Node.js, Express, Socketio
+- **Backend:** Node.js, Express
 - **AI and ML Frameworks:** LangGraph, Ollama
 - **Testing and Automation:** Playwright
 - **Version Control:** Git
