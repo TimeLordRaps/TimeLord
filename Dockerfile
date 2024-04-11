@@ -1,5 +1,3 @@
-# Dockerfile
-
 # Use the official Node.js 18 image as a parent image
 FROM node:18-alpine
 
@@ -18,8 +16,8 @@ RUN npm install
 # Copy the rest of your application code
 COPY . .
 
-# Set the DOCKERIZED environment variable
-ENV DOCKERIZED=true
+# Set the RUNNING_IN_DOCKER environment variable
+ENV RUNNING_IN_DOCKER=true
 
 # Expose port 3000 to access server
 EXPOSE 3000

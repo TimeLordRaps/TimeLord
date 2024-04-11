@@ -1,0 +1,8 @@
+# Dockerfile.terminal
+FROM ubuntu:latest
+
+# Install necessary packages
+RUN apt-get update && apt-get install -y tmux
+
+# Set a long-running command to keep the container active
+CMD ["tail", "-f", "/dev/null"]

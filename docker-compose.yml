@@ -1,6 +1,9 @@
+version: '3'
 services:
-  web:
-    build: .
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
     volumes:
       - .:/app
       - /app/node_modules
@@ -8,17 +11,17 @@ services:
       - "3000:3000"
     environment:
       - NODE_ENV=development
-      - FILE_STORAGE_PATH=${FILE_STORAGE_PATH:-./workspace}
     depends_on:
       - terminal
 
   terminal:
-    image: node:18-alpine
+    build:
+      context: .
+      dockerfile: Dockerfile.terminal
     volumes:
       - ${FILE_STORAGE_PATH:-./workspace}:/workspace
-    working_dir: /workspace
-    command: sh
-    environment:
-      - NODE_ENV=development
     tty: true
     stdin_open: true
+    environment:
+      - NODE_ENV=development
+    command: ["tail", "-f", "/dev/null"]

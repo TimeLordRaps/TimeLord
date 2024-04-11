@@ -1,39 +1,47 @@
-import React, { useState, useRef } from 'react';
-import { VStack, Box, Input, useToast } from '@chakra-ui/react';
+import React, { useState, useRef, useEffect } from 'react';
+import { VStack, Box, Input } from '@chakra-ui/react';
 
 const Terminal = () => {
   const [command, setCommand] = useState('');
   const [output, setOutput] = useState('');
-  const toast = useToast();
-  const terminalRef = useRef<HTMLDivElement>(null);
 
-  const handleSendCommand = async (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter' && command.trim()) {
+  useEffect(() => {
+    const eventSource = new EventSource('/api/terminal');
+
+    eventSource.onmessage = (event) => {
+      setOutput((prevOutput) => `${prevOutput}${event.data}`);
+    };
+
+    eventSource.onerror = (error) => {
+      console.error('EventSource error:', error);
+      eventSource.close();
+    };
+
+    return () => {
+      eventSource.close();
+    };
+  }, []);
+
+  const handleSendCommand = async () => {
+    if (command.trim()) {
       try {
         const response = await fetch('/api/terminal', {
           method: 'POST',
           headers: {
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ command })
+          body: JSON.stringify({ command }),
         });
-        const result = await response.json();
-        if (response.ok) {
-          setOutput(prevOutput => `${prevOutput}\n$ ${command}\n${result.stdout}`);
-        } else {
-          setOutput(prevOutput => `${prevOutput}\n$ ${command}\nError: ${result.message}`);
-        }
+        setCommand('');
       } catch (error) {
-        setOutput(prevOutput => `${prevOutput}\n$ ${command}\nError: Unable to connect to server.`);
+        console.error('Error sending command:', error);
       }
-      setCommand('');
     }
   };
 
   return (
     <VStack align="stretch" h="100%" spacing={0}>
       <Box
-        ref={terminalRef}
         borderWidth={1}
         borderRadius="md"
         p={4}
@@ -55,7 +63,11 @@ const Terminal = () => {
           _focus={{ boxShadow: 'none' }}
           value={command}
           onChange={(e) => setCommand(e.target.value)}
-          onKeyPress={handleSendCommand}
+          onKeyPress={(e) => {
+            if (e.key === 'Enter') {
+              handleSendCommand();
+            }
+          }}
         />
       </Box>
     </VStack>
