@@ -20,8 +20,9 @@ services:
       dockerfile: Dockerfile.terminal
     volumes:
       - ${FILE_STORAGE_PATH:-./workspace}:/workspace
+    container_name: timelord-terminal
     tty: true
     stdin_open: true
     environment:
       - NODE_ENV=development
-    command: ["tail", "-f", "/dev/null"]
+    command: sh -c "tmux new-session -d -s timelord; while true; do sleep 3600; done"
