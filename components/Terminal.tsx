@@ -8,20 +8,22 @@ const Terminal = () => {
 
   useEffect(() => {
     const eventSource = new EventSource('/api/terminal');
-
+  
     eventSource.onmessage = (event) => {
-      setOutput((prevOutput) => `${prevOutput}${event.data}\n`);
+      // Update output based on the latest data received
+      setOutput(event.data.replace(/^data: /, ''));
     };
-
+  
     eventSource.onerror = (error) => {
       console.error('EventSource error:', error);
       eventSource.close();
     };
-
+  
     return () => {
       eventSource.close();
     };
   }, []);
+  
 
   useEffect(() => {
     if (terminalRef.current) {

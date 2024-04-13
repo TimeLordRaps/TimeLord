@@ -1,8 +1,40 @@
+// pages/api/terminal.tsx
 import { NextApiHandler } from 'next';
 import { execSync } from 'child_process';
 
 const TMUX_SESSION_NAME = 'timelord';
 const DOCKER_CONTAINER_NAME = 'terminal';
+
+interface TerminalCommand {
+  command: string;
+  stdout: string;
+  stderr: string;
+  success: boolean;
+}
+
+class TerminalMemory {
+  sessionOutput: string[];
+
+  constructor() {
+    this.sessionOutput = [];
+  }
+
+  updateSession(output: string) {
+    this.sessionOutput = output.split('\n').filter(line => line.trim());
+  }
+
+  getLastCommandOutput(command: string): string {
+    // find the line that contains the command
+    const commandIndex = this.sessionOutput.findLastIndex(line => line.includes(command));
+    if (commandIndex !== -1 && commandIndex + 1 < this.sessionOutput.length) {
+      // slice all the lines after the commandIndex except the last line that holds the terminal input prompt
+      return this.sessionOutput.slice(commandIndex + 1, -1).join('\n');
+    }
+    return '';
+  }
+}
+
+const terminalMemory = new TerminalMemory();
 
 const handler: NextApiHandler = (req, res) => {
   if (req.method === 'POST') {
@@ -63,29 +95,22 @@ function setupSSE(res: NextApiResponse) {
 }
 
 function executeCommandInTmux(command: string, res: NextApiResponse) {
-  console.log('Received command:', command);
-
   const escapedCommand = command.replace(/'/g, "'\\''");
   const tmuxSendKeys = `tmux send-keys -t ${TMUX_SESSION_NAME} '${escapedCommand}' Enter`;
-  const tmuxCapturePane = `tmux capture-pane -p -J -t ${TMUX_SESSION_NAME}`;
-  const tmuxClearPane = `tmux clear-history -t ${TMUX_SESSION_NAME}`;
-  const dockerCommand = `docker-compose exec -T ${DOCKER_CONTAINER_NAME} bash -c "${tmuxSendKeys} && sleep 1 && ${tmuxCapturePane} && ${tmuxClearPane}"`;
+  const tmuxCapturePane = `tmux capture-pane -p -t ${TMUX_SESSION_NAME}`;
+  const dockerCommand = `docker-compose exec -T ${DOCKER_CONTAINER_NAME} bash -c "${tmuxSendKeys}; sleep 1; ${tmuxCapturePane}"`;
 
   try {
-    const output = execSync(dockerCommand).toString();
+    const fullOutput = execSync(dockerCommand).toString();
+    terminalMemory.updateSession(fullOutput);
+    const formattedOutput = terminalMemory.getLastCommandOutput(command);
 
-    const lines = output.trim().split('\n');
-    const promptRegex = /^root@.*?#\s*/;
-    const commandOutputLines = lines.filter((line) => line.trim() && !promptRegex.test(line));
-    const formattedOutput = commandOutputLines.join('\n');
-
-    console.log('Formatted output:', formattedOutput);
-    res.write(`data: ${formattedOutput}\n\n`);
-    res.write(`data: Command executed successfully\n\n`);
+    res.write(`${formattedOutput}\n`);
     res.end();
   } catch (error) {
     console.error('Error executing command:', error);
-    res.write(`data: Error executing command: ${error.message}\n\n`);
+    const errorMessage = `Error executing command: ${error.message}`;
+    res.write(`${errorMessage}\n`);
     res.end();
   }
 }
