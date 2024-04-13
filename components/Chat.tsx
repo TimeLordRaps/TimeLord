@@ -1,3 +1,5 @@
+// TODO Create integration with the chat api
+
 import React, { useState } from 'react';
 import { Box, VStack, Input, Button, InputGroup, InputRightElement, useColorModeValue } from '@chakra-ui/react';
 
