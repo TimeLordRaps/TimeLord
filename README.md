@@ -16,6 +16,7 @@ timelord saves you time.
 - **AI and ML Frameworks:** LangGraph, Ollama
 - **Testing and Automation:** Playwright
 - **Version Control:** Git
+- **Containerization:** Docker
 
 ## Roadmap
 1. **Project Setup and Core Architecture**
