@@ -1,5 +1,7 @@
 # timelord
 
+![screenshot of the current app](https://github.com/TimeLordRaps/timelord/blob/main/public/Screenshot%202024-04-13%20010613.png)
+
 ## Overview
 timelord saves you time.
 
