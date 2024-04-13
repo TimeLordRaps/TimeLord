@@ -1,3 +1,4 @@
+// components/Editor.tsx
 import React, { useState, useEffect } from 'react';
 import FileManager from './FileManager';
 import { VStack, HStack, Box } from '@chakra-ui/react';
@@ -6,10 +7,14 @@ import Editor, { OnChange } from '@monaco-editor/react';
 const EditorComponent: React.FC = () => {
   const [files, setFiles] = useState([]);
   const [selectedFile, setSelectedFile] = useState(null);
-  const [fileContent, setFileContent] = useState('');
+  const [fileContent, setFileContent] = useState(''); // Initially empty to display blank editor
 
   useEffect(() => {
     fetchFiles();
+    // Immediately load a blank editor on component mount
+    if (!selectedFile) {
+      setFileContent('');
+    }
   }, []);
 
   const fetchFiles = async () => {
@@ -61,25 +66,23 @@ const EditorComponent: React.FC = () => {
         <FileManager onFileClick={handleFileClick} />
       </Box>
       <VStack align="stretch" flexGrow={1} spacing={0}>
-        {selectedFile && (
-          <Box flexGrow={1}>
-            <Editor
-              height="100%"
-              language={getLanguage(selectedFile.name)}
-              theme="vs-dark"
-              value={fileContent}
-              onChange={handleEditorChange}
-              options={{
-                selectOnLineNumbers: true,
-                fontSize: 14,
-                scrollBeyondLastLine: false,
-                wordWrap: "on",
-                formatOnPaste: true,
-                minimap: { enabled: false },
-              }}
-            />
-          </Box>
-        )}
+        <Box flexGrow={1}>
+          <Editor
+            height="100%"
+            language={getLanguage(selectedFile?.name || 'plaintext')}
+            theme="vs-dark"
+            value={fileContent}
+            onChange={handleEditorChange}
+            options={{
+              selectOnLineNumbers: true,
+              fontSize: 14,
+              scrollBeyondLastLine: false,
+              wordWrap: "on",
+              formatOnPaste: true,
+              minimap: { enabled: false },
+            }}
+          />
+        </Box>
       </VStack>
     </HStack>
   );
