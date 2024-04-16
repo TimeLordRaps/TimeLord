@@ -45,8 +45,6 @@ const handler: NextApiHandler = (req, res) => {
     } catch (error) {
       res.status(500).json({ message: `Error processing command: ${error.message}` });
     }
-  } else if (req.method === 'GET') {
-    setupSSE(res);
   } else {
     res.status(405).json({ message: 'Method not allowed' });
   }

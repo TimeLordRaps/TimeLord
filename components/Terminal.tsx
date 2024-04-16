@@ -5,26 +5,7 @@ const Terminal = () => {
   const [command, setCommand] = useState('');
   const [output, setOutput] = useState('');
   const terminalRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const eventSource = new EventSource('/api/terminal');
   
-    eventSource.onmessage = (event) => {
-      // Update output based on the latest data received
-      setOutput(event.data.replace(/^data: /, ''));
-    };
-  
-    eventSource.onerror = (error) => {
-      console.error('EventSource error:', error);
-      eventSource.close();
-    };
-  
-    return () => {
-      eventSource.close();
-    };
-  }, []);
-  
-
   useEffect(() => {
     if (terminalRef.current) {
       terminalRef.current.scrollTop = terminalRef.current.scrollHeight;
@@ -45,7 +26,7 @@ const Terminal = () => {
 
         if (response.ok) {
           const data = await response.text();
-          setOutput((prevOutput) => `${prevOutput}${data}\n`);
+          setOutput((prevOutput) => `${prevOutput}${data}\n`); // 
           setCommand('');
         } else {
           console.error('Error sending command:', response.statusText);

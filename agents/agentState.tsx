@@ -21,7 +21,8 @@ class AgentState {
     leadTesterMessages: BaseMessage[];
     featureSuggesterMessages: BaseMessage[];
     competitiveAnalystMessages: BaseMessage[];
-    requirementsDocument: string;
+    requirementsDocument: string[];
+    currentFeature: string;
     competitiveAnalysisWebQuery: string;
     competitiveAnalysisResults: string;
     identicality: string;
@@ -30,7 +31,9 @@ class AgentState {
     plan: string;
     projectStructure: string;
     environmentSetup: string;
-    environmentState: string;
+    terminalCommands: string[];
+    terminalOutputs: string[];
+    relevantFiles: {[key: string]: { content: string, lineStart: number, lineEnd: number}};
     complete: boolean;
     
 
@@ -44,7 +47,8 @@ class AgentState {
         this.leadTesterMessages = [];
         this.featureSuggesterMessages = [];
         this.competitiveAnalystMessages = [];
-        this.requirementsDocument = "";
+        this.requirementsDocument = [];
+        this.currentFeature = "";
         this.competitiveAnalysisWebQuery = "";
         this.competitiveAnalysisResults = "";
         this.identicality = "";
@@ -53,7 +57,15 @@ class AgentState {
         this.plan = "";
         this.projectStructure = "";
         this.environmentSetup = "";
-        this.environmentState = "";
+        this.terminalCommands = [];
+        this.terminalOutputs = [];
+        this.relevantFiles = {
+            "fileNameGoesHere": {
+                content: "fileContentGoesHere",
+                lineStart: 0,
+                lineEnd: 0
+            }
+        };
         this.complete = false;
     }
 }
