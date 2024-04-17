@@ -1,9 +1,10 @@
-//TODO: Implement the query handlers for the Lead Programmer agent
+//TODO: Implement the edit file functionality so that when a file is updated any changes are reflected in the relevantFiles object
 
 import { ChatPromptTemplate } from "@langchain/core/prompts";
 import { model } from "./model";
 import { Agent } from "./agent"
 import { AgentState } from "./agentState"
+import { findInFiles, goToLine, querySemantic } from "./tools/fileTool"
 
 // The system prompt template for the Lead Programmer agent
 const leadProgrammerSystemPromptTemplate = "You are the Lead Programmer for a software engineering company. You are responsible for setting up the project's environment, creating the project's structure, and implementing the features that the project lead has outlined in the requirements document:{requirementsDocument}."
@@ -39,7 +40,7 @@ const generateQueryCommandForFeatureImplementation = stakeholdersRequest + showC
 
 
 // The prompt template for editing files
-const editCommandDescription = "You have the the ability to insert new lines of code or replace existing lines of code in files in a project directory that has the following file tree:\n\n{fileTree}\n\nYou should respond with a replace command that will make the necessary changes to the files in the project directory. To use the command start a new line with the keyword replace followed by two line numbers, a file path, and the code you want to replace the lines with (inclusive).\nExamples\n1. replace 1 5 'main.py' 'import numpy as np\nimport pandas as pd'\n\nTo insert a new line of code, use the keyword insert followed by a line number, a file path, and the code you want to insert.\nExamples\n1. insert 5 'main.py' 'import numpy as np'\n\nThe specific behavior of the insert command is that it will simply paste in the code you provide at the start of the line specified, so if the line is not empty what was previously there will be appended to the end with no other modifications, so make sure to add a new line at the end of any inserts. Each replace or insert command should be on a new line. You can run multiple replace or insert commands in sequence by ordering your response in the order you want the changes to be made.\n\nTo remove lines simply replace with an empty replacement string.\nTo create a new file just pass in a file path that does not exist.\nAll file paths should be relative to the project directory.\n\n"
+const editCommandDescription = "You have the the ability to insert new lines of code or replace existing lines of code in files in a project directory that has the following file tree:\n\n{fileTree}\n\nYou should respond with a replace command that will make the necessary changes to the files in the project directory. To use the command start a new line with the keyword replace followed by two line numbers, a file path, and the code you want to replace the lines with (inclusive).\nExamples\n1. replace 1 5 'main.py' 'import numpy as np\nimport pandas as pd'\n\nTo insert a new line of code, use the keyword insert followed by a line number, a file path, and the code you want to insert.\nExample:\ninsert 5 'main.py' 'import numpy as np'\n\nThe specific behavior of the insert command is that it will simply paste in the code you provide at the start of the line specified, so if the line is not empty what was previously there will be appended to the end with no other modifications, so make sure to add a new line at the end of any inserts. Each replace or insert command should be on a new line. You can run multiple replace or insert commands in sequence by ordering your response in the order you want the changes to be made.\n\nTo remove lines simply replace with an empty replacement string.\nTo create a new file just pass in a file path that does not exist.\nAll file paths should be relative to the project directory.\n\n"
 
 const editCompletionClause = "If you believe the files have already been edited correctly, your response should begin with the word complete and you should not attempt to run any additional edits.\n\n"
 
@@ -83,40 +84,45 @@ class LeadProgrammer extends Agent {
         }
     }
 
-    async queryFileSystem(agentState: AgentState) {
-        const queryLines = agentState.leadProgrammerMessages[agentState.leadProgrammerMessages.length - 1].content.split("\n");
+    async queryFileSystem(agentState: AgentState): Promise<AgentState> {
+        //Behavior is currently a complete replacement, but should be changed to a moving context window based strategy
+        const queryLines = String(agentState.leadProgrammerMessages[agentState.leadProgrammerMessages.length - 1].content).split("\n");
+        agentState.relevantFiles = {};
+        const results = [];
         for (let i = 0; i < queryLines.length; i++) {
             if (queryLines[i].startsWith("findInFiles")) {
                 const query = queryLines[i].substring(13);
                 const data = await findInFiles(query);
-                const relevantFiles = JSON.parse(data);
-                for (let i = 0; i < relevantFiles.length; i++){
-                    agentState.relevantFiles[relevantFiles[i]["fileName"]] = {
-                        "content": relevantFiles[i]["content"],
-                        "lineStart": relevantFiles[i]["lineStart"],
-                        "lineEnd": relevantFiles[i]["lineEnd"]
+                for (let i = 0; i < data.length; i++){
+                    agentState.relevantFiles[data[i]["path"]] = {
+                        "content": data[i]["content"],
+                        "lineStart": data[i]["lineStart"],
+                        "lineEnd": data[i]["lineEnd"]
                     }
                 }
             } else if (queryLines[i].startsWith("goToLine")) {
                 const query = queryLines[i].substring(9);
-                const data = await goToLine(query);
-                const relevantFile = JSON.parse(data);
-                agentState.relevantFiles[relevantFile["fileName"]] = {
-                    "content": relevantFile["content"],
-                    "lineStart": relevantFile["lineStart"],
-                    "lineEnd": relevantFile["lineEnd"]
+                const lineToGoTo = query.substring(0, query.indexOf(" ")).trim();
+                const fileToGoTo = query.substring(query.indexOf(" ")).trim();
+                const data = await goToLine(fileToGoTo, Number(lineToGoTo));
+                agentState.relevantFiles[data["path"]] = {
+                    "content": data["content"],
+                    "lineStart": data["lineStart"],
+                    "lineEnd": data["lineEnd"]
                 }
             } else if (queryLines[i].startsWith("querySemantic")) {
                 const query = queryLines[i].substring(13);
                 const data = await querySemantic(query);
-                const relevantFile = JSON.parse(data);
-                agentState.relevantFiles[relevantFile["fileName"]] = {
-                    "content": relevantFile["content"],
-                    "lineStart": relevantFile["lineStart"],
-                    "lineEnd": relevantFile["lineEnd"]
+                for (let i = 0; i < data.length; i++){
+                    agentState.relevantFiles[data[i]["path"]] = {
+                        "content": data[i]["content"],
+                        "lineStart": data[i]["lineStart"],
+                        "lineEnd": data[i]["lineEnd"]
+                    }
                 }
             }
         }
+        return agentState;
     }
 
     async joinCommands(agentState: AgentState) {
@@ -193,7 +199,8 @@ class LeadProgrammer extends Agent {
                 currentFeature: agentState.currentFeature,
                 relevantFiles: "\n\n" + JSON.stringify(agentState.relevantFiles) + "\n\n"
             }));
-            agentState.relevantFiles = 
+            agentState = await this.queryFileSystem(agentState);
+
             return agentState;
         }
     }
