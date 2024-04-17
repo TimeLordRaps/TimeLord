@@ -4,7 +4,7 @@ import { ChatPromptTemplate } from "@langchain/core/prompts";
 import { model } from "./model";
 import { Agent } from "./agent"
 import { AgentState } from "./agentState"
-import { findInFiles, goToLine, querySemantic } from "./tools/fileTool"
+import { findInFiles, goToLine, querySemantic, replaceInFile, insertInFile } from "./tools/fileTool"
 
 // The system prompt template for the Lead Programmer agent
 const leadProgrammerSystemPromptTemplate = "You are the Lead Programmer for a software engineering company. You are responsible for setting up the project's environment, creating the project's structure, and implementing the features that the project lead has outlined in the requirements document:{requirementsDocument}."
@@ -54,7 +54,7 @@ const generateSummonCommandForFeatureImplementation = stakeholdersRequest + show
 
 
 // The prompt template for deciding which action to take
-const jobActionDecision = "Your job is to decide what action from the following list you will take to implement the feature:\n1. Run commands in the terminal (commands).\n2. Generate queries to retrieve new code snippets for the feature (query).\n3. Edit files in the project directory to implement the feature(edit).\n4. Summon a component designer specialized in the domain of the feature to assist you (summmon).\n5. The feature is complete and working as expected (complete).\n\n"
+const jobActionDecision = "Your job is to decide what action from the following list you will take to implement the feature in the fewest amount of actions:\n1. Run commands in the terminal (commands).\n2. Generate queries to retrieve new code snippets for the feature (query).\n3. Edit files in the project directory to implement the feature(edit).\n4. Summon a component designer specialized in the domain of the feature to assist you (summmon).\n5. The feature is complete and working as expected (complete).\n\nHere are situations when to use each action:\n1. Use commands when you need to setup the environment or project structure.\n2. Use queries when you need to find relevant code snippets or if the relevant code snippets contain too much irrelevant code.\n3. Use edits when you need to make changes to the codebase.\n4. Use summon when you need specialized help.\n5. Use complete when the feature is working as expected.\n\n"
 
 const generateJobActionDecision = stakeholdersRequest + showCurrentFeature + jobActionDecision + showCodeSnippets + showTerminalOutput
 
@@ -94,31 +94,34 @@ class LeadProgrammer extends Agent {
                 const query = queryLines[i].substring(13);
                 const data = await findInFiles(query);
                 for (let i = 0; i < data.length; i++){
-                    agentState.relevantFiles[data[i]["path"]] = {
+                    agentState.relevantFiles[data[i]["path"]].push({
                         "content": data[i]["content"],
                         "lineStart": data[i]["lineStart"],
-                        "lineEnd": data[i]["lineEnd"]
-                    }
+                        "lineEnd": data[i]["lineEnd"],
+                        "updatedDateTimestamp": Date.now()
+                    });
                 }
             } else if (queryLines[i].startsWith("goToLine")) {
                 const query = queryLines[i].substring(9);
                 const lineToGoTo = query.substring(0, query.indexOf(" ")).trim();
                 const fileToGoTo = query.substring(query.indexOf(" ")).trim();
                 const data = await goToLine(fileToGoTo, Number(lineToGoTo));
-                agentState.relevantFiles[data["path"]] = {
+                agentState.relevantFiles[data["path"]].push({
                     "content": data["content"],
                     "lineStart": data["lineStart"],
-                    "lineEnd": data["lineEnd"]
-                }
+                    "lineEnd": data["lineEnd"],
+                    "updatedDateTimestamp": Date.now()
+                });
             } else if (queryLines[i].startsWith("querySemantic")) {
                 const query = queryLines[i].substring(13);
                 const data = await querySemantic(query);
                 for (let i = 0; i < data.length; i++){
-                    agentState.relevantFiles[data[i]["path"]] = {
+                    agentState.relevantFiles[data[i]["path"]].push({
                         "content": data[i]["content"],
                         "lineStart": data[i]["lineStart"],
-                        "lineEnd": data[i]["lineEnd"]
-                    }
+                        "lineEnd": data[i]["lineEnd"],
+                        "updatedDateTimestamp": Date.now()
+                    });
                 }
             }
         }
@@ -192,16 +195,98 @@ class LeadProgrammer extends Agent {
                 currentFeature: agentState.currentFeature,
                 relevantFiles: "You need to query for relevant files first."
             }));
-            return agentState;
         } else {
             agentState.leadProgrammerMessages.push(await chain.invoke({
                 userRequest: agentState.userMessages[agentState.userMessages.length - 1].content,
                 currentFeature: agentState.currentFeature,
                 relevantFiles: "\n\n" + JSON.stringify(agentState.relevantFiles) + "\n\n"
             }));
-            agentState = await this.queryFileSystem(agentState);
-
-            return agentState;
         }
+        
+        agentState = await this.queryFileSystem(agentState);
+        return agentState;
     }
+
+    async updateRelevantFilesOnReplace(agentState: AgentState, filePath: string, lineStart: number, lineEnd: number, replacement: string): Promise<AgentState>{
+        const fileEntries = agentState.relevantFiles[filePath] || [];
+        for (let entry of fileEntries) {
+            if (entry.lineStart <= lineEnd && entry.lineEnd >= lineStart) {
+                const startOffset = lineStart - entry.lineStart;
+                const endOffset = entry.lineEnd - lineEnd;
+                entry.content = [
+                    entry.content.substring(0, startOffset),
+                    replacement,
+                    entry.content.substring(endOffset)
+                ].join('');
+                entry.lineEnd = entry.lineStart + startOffset + replacement.split('\n').length - 1;
+            }
+        }
+        agentState.relevantFiles[filePath] = fileEntries;
+        return agentState;
+    }
+    
+    async updateRelevantFilesOnInsert(agentState: AgentState, filePath: string, lineStart: number, insertion: string) : Promise<AgentState>{
+        const fileEntries = agentState.relevantFiles[filePath] || [];
+        const insertLinesCount = insertion.split('\n').length;
+        for (let entry of fileEntries) {
+            if (entry.lineStart >= lineStart) {
+                entry.lineStart += insertLinesCount;
+                entry.lineEnd += insertLinesCount;
+            }
+            // Update entries that span the insertion point
+            if (entry.lineStart < lineStart && entry.lineEnd >= lineStart) {
+                entry.content = entry.content.substring(0, lineStart - entry.lineStart) + "\n" + insertion + entry.content.substring(lineStart - entry.lineStart);
+                entry.lineEnd += insertLinesCount;
+            }
+        }
+        agentState.relevantFiles[filePath] = fileEntries;
+        return agentState;
+    }
+
+    async generateEditCommandForFeatureImplementation(agentState: AgentState): Promise<AgentState> {
+        const prompt = ChatPromptTemplate.fromMessages([
+            ["system", leadProgrammerSystemPromptTemplate],
+            ["user", generateEditCommandForFeatureImplementation]
+        ]);
+        const chain = prompt.pipe(model);
+        agentState.leadProgrammerMessages.push(await chain.invoke({
+            userRequest: agentState.userMessages[agentState.userMessages.length - 1].content,
+            currentFeature: agentState.currentFeature,
+        }));
+    
+        const editCommands = String(agentState.leadProgrammerMessages[agentState.leadProgrammerMessages.length - 1].content).split("\n");
+    
+        for (let command of editCommands) {
+            const parts = command.split(' ');
+            const action = parts.shift(); // Remove and return the action
+            if (action === "replace" || action === "insert") {
+                const lineStart = parseInt(parts.shift() || "-1");
+                if(lineStart === -1) {
+                    throw new Error("Invalid line start");
+                }
+                if (action === "replace") {
+                    const lineEnd = parseInt(parts.shift() || "-1");
+                    if(lineEnd === -1) {
+                        throw new Error("Invalid line end");
+                    }
+                    const filePath = parts.shift() || "";
+                    if (filePath === "") {
+                        throw new Error("Invalid file path");
+                    }
+                    const code = parts.join(' '); // Join the remaining parts for the code
+                    await replaceInFile(filePath, lineStart, lineEnd, code);
+                    this.updateRelevantFilesOnReplace(agentState, filePath, lineStart, lineEnd, code);
+                } else if (action === "insert") {
+                    const filePath = parts.shift() || "";
+                    if (filePath === "") {
+                        throw new Error("Invalid file path");
+                    }
+                    const code = parts.join(' '); // Join the remaining parts for the code
+                    await insertInFile(filePath, lineStart, code);
+                    this.updateRelevantFilesOnInsert(agentState, filePath, lineStart, code);
+                }
+            }
+        }
+        return agentState;
+    } 
 }

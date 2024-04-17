@@ -33,7 +33,8 @@ class AgentState {
     environmentSetup: string;
     terminalCommands: string[];
     terminalOutputs: string[];
-    relevantFiles: {[key: string]: { content: string, lineStart: number, lineEnd: number}};
+    previousQuery: string;
+    relevantFiles: {[key: string]: [{ content: string, lineStart: number, lineEnd: number, updatedDateTimestamp: number}]};
     complete: boolean;
     
 
@@ -59,12 +60,14 @@ class AgentState {
         this.environmentSetup = "";
         this.terminalCommands = [];
         this.terminalOutputs = [];
+        this.previousQuery = "";
         this.relevantFiles = {
-            "fileNameGoesHere": {
+            "fileNameGoesHere": [{
                 content: "fileContentGoesHere",
                 lineStart: 0,
-                lineEnd: 0
-            }
+                lineEnd: 0,
+                updatedDateTimestamp: Date.now()
+            }]
         };
         this.complete = false;
     }

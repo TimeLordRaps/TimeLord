@@ -273,27 +273,33 @@ async function querySemantic(query: string): Promise<SearchResult[]> {
 }
 
 //replaceInFile
-async function replaceInFile(path: string, lineStart: number, lineEnd: number, replacement: string): Promise<void> {
+async function replaceInFile(path: string, lineStart: number, lineEnd: number, replacement: string): Promise<SearchResults> {
     // replace the lines from lineStart to lineEnd with the replacement text
+    const escapedReplacement = replacement.replace(/\\/g, '\\\\')
+    const command = `sed -i '${lineStart},${lineEnd}c\\\\${escapedReplacement}' ${path}`
+    const escapedCommand = command.replace(/'/g, "'\\''");
     const catResponse = await fetch('/api/terminal', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
         },
-        body: "sed -i '" + lineStart + "," + lineEnd + "c\\" + replacement + "' " + path,
+        body: escapedCommand,
     });
     if (!catResponse.ok) throw new Error('Failed to replace in file');
 }
 
 //insertInFile
-async function insertInFile(path: string, line: number, insertion: string): Promise<void> {
+async function insertInFile(path: string, line: number, insertion: string): Promise<SearchResult> {
     // insert the insertion text after the line number in the file
+    const escapedReplacement = insertion.replace(/\\/g, '\\\\')
+    const command = `sed -i '${line}a\\\\${escapedReplacement}' ${path}`
+    const escapedCommand = command.replace(/'/g, "'\\''");
     const catResponse = await fetch('/api/terminal', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
         },
-        body: "sed -i '" + line + "a\\" + insertion + "' " + path,
+        body: escapedCommand,
     });
     if (!catResponse.ok) throw new Error('Failed to insert in file');
 }
