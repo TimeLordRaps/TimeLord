@@ -1,6 +1,11 @@
 // pages/api/chat.tsx
 import { v4 as uuidv4 } from 'uuid';  // For generating unique message IDs
 import { NextApiRequest, NextApiResponse } from 'next';
+import { runnable } from '../../agents/langgraph'
+import { HumanMessage, AIMessage } from "@langchain/core/messages";
+import { AgentState } from '../../agents/agentState'
+
+let agentState = new AgentState();
 
 class Message { 
   constructor(
@@ -34,8 +39,9 @@ class ChatHistory {
     // Link to parent message if applicable
     if (parentId && this.messages.has(parentId)) {
       const parentMessage = this.messages.get(parentId);
-      parentMessage.childrenIds.push(newMessage.id);
-      this.messages.set(parentId, parentMessage);
+      if(!parentMessage) return newMessage;
+      parentMessage.childrenIds.push(newMessage.id || '');
+      this.messages.set(parentId, parentMessage as Message);
     }
     return newMessage;
   }
@@ -66,7 +72,7 @@ class ChatHistory {
     const queue: string[] = [messageId];
   
     while (queue.length > 0) {
-      const currentMessageId = queue.shift();
+      const currentMessageId = queue.shift() || '';
       const message = this.messages.get(currentMessageId);
       if (message) {
         result.push(message);
@@ -84,7 +90,18 @@ class ChatHistory {
   
 const chatHistory = new ChatHistory();
 
-const handler = (req: NextApiRequest, res: NextApiResponse) => {
+async function generateChatResponseFromOutput(output: AgentState, newMessage: Message): Promise<Message> {
+  let lastMessage = newMessage;
+  for(let i = 0; i < output.messages.length; i++) {
+    const message = output.messages[i];
+    if(message instanceof AIMessage) {
+      lastMessage = chatHistory.addMessage("AI", String(message.content), lastMessage.id);
+    }
+  }
+  return lastMessage;
+}
+
+async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
     if (req.method === 'GET') {
       const { messageId } = req.query;
@@ -97,8 +114,14 @@ const handler = (req: NextApiRequest, res: NextApiResponse) => {
       }
     } else if (req.method === 'POST') {
       const { user, content, parentId } = req.body;
+      agentState.userMessages.push(new HumanMessage(content));
+      const inputs = {
+        messages: agentState
+      }
+      let finishedOutput = await runnable.invoke(inputs);
       const newMessage = chatHistory.addMessage(user, content, parentId);
-      res.status(201).json(newMessage);
+      let output = await generateChatResponseFromOutput(finishedOutput, newMessage);
+      res.status(201).json(output);
     } else if (req.method === 'PUT') {
       const { messageId } = req.query;
       const { content } = req.body;
@@ -113,7 +136,11 @@ const handler = (req: NextApiRequest, res: NextApiResponse) => {
       res.status(405).end(`Method ${req.method} Not Allowed`);
     }
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    if(error instanceof Error) {
+      res.status(500).json({ message: error.message });
+    } else {
+      res.status(500).json({ message: 'An unknown error occurred' });
+    }
   }
 };
 

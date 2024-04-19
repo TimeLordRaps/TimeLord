@@ -1,17 +1,18 @@
-//TODO: Implement the edit file functionality so that when a file is updated any changes are reflected in the relevantFiles object
-
+//TODO:add messages push to each generate function in all agents
 import { ChatPromptTemplate } from "@langchain/core/prompts";
 import { model } from "./model";
 import { Agent } from "./agent"
 import { AgentState } from "./agentState"
-import { findInFiles, goToLine, querySemantic, replaceInFile, insertInFile } from "./tools/fileTool"
+import { HumanMessage } from "@langchain/core/messages";
+import { findInFiles, goToLine, querySemantic, replaceInFile, insertInFile, getFileTree } from "./tools/fileTool"
+
 
 // The system prompt template for the Lead Programmer agent
 const leadProgrammerSystemPromptTemplate = "You are the Lead Programmer for a software engineering company. You are responsible for setting up the project's environment, creating the project's structure, and implementing the features that the project lead has outlined in the requirements document:{requirementsDocument}."
 
 
 // The prompt template for generating terminal commands
-const terminalCommandDescription = "You can run commands by prefacing the start of a line with the $ symbol. For example, to run the command 'ls', you would type:'\n$ ls'\n\nYou can run multiple commands in sequence by ordering your response in the order you would run the commands in the terminal. Each new command should be on a new line and prefaced with the $ symbol.\n\n"
+const terminalCommandDescription = "You have the ability to run commands by prefacing the start of a line with the $ symbol. For example, to run the command 'ls', you would type:'\n$ ls'\n\nYou can run multiple commands in sequence by ordering your response in the order you would run the commands in the terminal. Each new command should be on a new line and prefaced with the $ symbol.\n\nHere is a file tree of the project directory:\n\n{fileTree}\n\n"
 
 const showTerminalOutput = "You have previously run these command(s) in the terminal with their respective outputs:\n\n{previousCommands}\n\nYou should use the output of these commands to inform your response.\n\n"
 
@@ -40,7 +41,7 @@ const generateQueryCommandForFeatureImplementation = stakeholdersRequest + showC
 
 
 // The prompt template for editing files
-const editCommandDescription = "You have the the ability to insert new lines of code or replace existing lines of code in files in a project directory that has the following file tree:\n\n{fileTree}\n\nYou should respond with a replace command that will make the necessary changes to the files in the project directory. To use the command start a new line with the keyword replace followed by two line numbers, a file path, and the code you want to replace the lines with (inclusive).\nExamples\n1. replace 1 5 'main.py' 'import numpy as np\nimport pandas as pd'\n\nTo insert a new line of code, use the keyword insert followed by a line number, a file path, and the code you want to insert.\nExample:\ninsert 5 'main.py' 'import numpy as np'\n\nThe specific behavior of the insert command is that it will simply paste in the code you provide at the start of the line specified, so if the line is not empty what was previously there will be appended to the end with no other modifications, so make sure to add a new line at the end of any inserts. Each replace or insert command should be on a new line. You can run multiple replace or insert commands in sequence by ordering your response in the order you want the changes to be made.\n\nTo remove lines simply replace with an empty replacement string.\nTo create a new file just pass in a file path that does not exist.\nAll file paths should be relative to the project directory.\n\n"
+const editCommandDescription = "You have the the ability to insert new lines of code or replace existing lines of code in files in a project directory that has the following file tree:\n\n{fileTree}\n\nYou should respond with a replace command that will make the necessary changes to the files in the project directory. To use the command start a new line with the keyword replace followed by two line numbers, a file path, and the code you want to replace the lines with (inclusive).\nExamples\n1. replace 1 5 'main.py' 'import numpy as np\nimport pandas as pd'\n\nTo insert a new line of code, use the keyword insert followed by a line number, a file path, and the code you want to insert.\nExample:\ninsert 5 'main.py' 'import numpy as np'\n\nThe specific behavior of the insert command is that it will simply paste in the code you provide at the start of the line specified, so if the line is not empty what was previously there will be appended to the end with no other modifications, so make sure to add a new line at the end of any inserts. Each replace or insert command should be on a new line. You can run multiple replace or insert commands in sequence by ordering your response in the order you want the changes to be made.\n\nTo remove lines simply replace with an empty replacement string.\nTo create a new file just pass in a file path that does not exist with lineStart as 1, and for replace make sure to make lineEnd 1 as well.\nAll file paths should be relative to the project directory.\n\n"
 
 const editCompletionClause = "If you believe the files have already been edited correctly, your response should begin with the word complete and you should not attempt to run any additional edits.\n\n"
 
@@ -54,9 +55,15 @@ const generateSummonCommandForFeatureImplementation = stakeholdersRequest + show
 
 
 // The prompt template for deciding which action to take
-const jobActionDecision = "Your job is to decide what action from the following list you will take to implement the feature in the fewest amount of actions:\n1. Run commands in the terminal (commands).\n2. Generate queries to retrieve new code snippets for the feature (query).\n3. Edit files in the project directory to implement the feature(edit).\n4. Summon a component designer specialized in the domain of the feature to assist you (summmon).\n5. The feature is complete and working as expected (complete).\n\nHere are situations when to use each action:\n1. Use commands when you need to setup the environment or project structure.\n2. Use queries when you need to find relevant code snippets or if the relevant code snippets contain too much irrelevant code.\n3. Use edits when you need to make changes to the codebase.\n4. Use summon when you need specialized help.\n5. Use complete when the feature is working as expected.\n\n"
+const jobActionDecisionFeatureImplementation = "Your job is to decide what action from the following list you will take to implement the feature in the fewest amount of actions:\n1. Run commands in the terminal (commands).\n2. Generate queries to retrieve new code snippets for the feature (query).\n3. Edit files in the project directory to implement the feature(edit).\n4. Summon a component designer specialized in the domain of the feature to assist you (summmon).\n5. The feature is complete and working as expected (complete).\n\nHere are situations when to use each action:\n1. Use commands when you need to setup the environment or project structure.\n2. Use queries when you need to find relevant code snippets or if the relevant code snippets contain too much irrelevant code.\n3. Use edits when you need to make changes to the codebase.\n4. Use summon when you need specialized help.\n5. Use complete when the feature is working as expected.\n\n"
 
-const generateJobActionDecision = stakeholdersRequest + showCurrentFeature + jobActionDecision + showCodeSnippets + showTerminalOutput
+
+const generateJobActionDecision = stakeholdersRequest + showCurrentFeature + jobActionDecisionFeatureImplementation + showCodeSnippets + showTerminalOutput
+
+//The prompt template for responding to the lead tester
+const showLeadTesterMessage = "The Lead Tester has sent you this message:\n\n{leadTesterMessage}\n\n"
+
+const jobActionDecisionTesting = "Your job is to decide what action from the following list you will take to implement the test the lead tester told you that you need to implement in the fewest amount of actions:\n1. Run commands in the terminal (commands).\n2. Generate queries to retrieve new code snippets for the feature (query).\n3. Edit files in the project directory to implement the feature(edit).\n4. The tests are complete and passing as expected (complete).\n\nHere are situations when to use each action:\n1. Use commands when you need to run tests.\n2. Use queries when you need to find relevant code snippets or if the relevant code snippets contain too much irrelevant code.\n3. Use edits when you need to make changes to the codebase.\n4. Use complete when the test are passing as expected.\n\n"
 
 class LeadProgrammer extends Agent {
     constructor() {
@@ -140,13 +147,16 @@ class LeadProgrammer extends Agent {
             ["system", leadProgrammerSystemPromptTemplate],
             ["user", generateTerminalCommandsForEnvironmentSetup]
         ])
+        agentState.messages.push(new HumanMessage(generateTerminalCommandsForEnvironmentSetup));
         const chain = prompt.pipe(model);
         const previousCommands = this.joinCommands(agentState);
         agentState.leadProgrammerMessages.push(await chain.invoke({
+            requirementsDocument: agentState.requirementsDocument,
             userRequest: agentState.userMessages[agentState.userMessages.length - 1].content,
             projectStructure: agentState.projectStructure,
             environmentSetup: agentState.environmentSetup,
-            previousCommands: previousCommands
+            previousCommands: previousCommands,
+            fileTree: getFileTree()
         }));
         const terminalCommandLines = String(agentState.leadProgrammerMessages[agentState.leadProgrammerMessages.length - 1].content).split("\n");
         for (let i = 0; i < terminalCommandLines.length; i++) {
@@ -157,6 +167,8 @@ class LeadProgrammer extends Agent {
                 agentState.terminalOutputs.push(data||""); 
             }
         }
+        agentState.messages.push(agentState.leadProgrammerMessages[agentState.leadProgrammerMessages.length - 1])
+        console.log(agentState.messages[agentState.messages.length - 1].content)
         return agentState;
     }
 
@@ -165,12 +177,14 @@ class LeadProgrammer extends Agent {
             ["system", leadProgrammerSystemPromptTemplate],
             ["user", generateTerminalCommandsForFeatureImplementation]
         ])
+        agentState.messages.push(new HumanMessage(generateTerminalCommandsForFeatureImplementation));
         const chain = prompt.pipe(model);
-        const previousCommands = this.joinCommands(agentState);
         agentState.leadProgrammerMessages.push(await chain.invoke({
+            requirementsDocument: agentState.requirementsDocument,
             userRequest: agentState.userMessages[agentState.userMessages.length - 1].content,
             currentFeature: agentState.currentFeature,
-            previousCommands: previousCommands
+            previousCommands: this.joinCommands(agentState),
+            fileTree: getFileTree()
         }));
         const terminalCommandLines = String(agentState.leadProgrammerMessages[agentState.leadProgrammerMessages.length - 1].content).split("\n");
         for (let i = 0; i < terminalCommandLines.length; i++) {
@@ -181,6 +195,8 @@ class LeadProgrammer extends Agent {
                 agentState.terminalOutputs.push(data||""); 
             }
         }
+        agentState.messages.push(agentState.leadProgrammerMessages[agentState.leadProgrammerMessages.length - 1])
+        console.log(agentState.messages[agentState.messages.length - 1].content)
         return agentState;
     }
     async generateQueryCommandForFeatureImplementation(agentState: AgentState) {
@@ -188,22 +204,31 @@ class LeadProgrammer extends Agent {
             ["system", leadProgrammerSystemPromptTemplate],
             ["user", generateQueryCommandForFeatureImplementation]
         ])
+        agentState.messages.push(new HumanMessage(generateQueryCommandForFeatureImplementation));
         const chain = prompt.pipe(model);
         if(agentState.relevantFiles["fileNameGoesHere"]) {
             agentState.leadProgrammerMessages.push(await chain.invoke({
+                requirementsDocument: agentState.requirementsDocument,
                 userRequest: agentState.userMessages[agentState.userMessages.length - 1].content,
                 currentFeature: agentState.currentFeature,
+                fileTree: getFileTree(),
+                previousCommands: this.joinCommands(agentState),
                 relevantFiles: "You need to query for relevant files first."
             }));
         } else {
             agentState.leadProgrammerMessages.push(await chain.invoke({
+                requirementsDocument: agentState.requirementsDocument,
                 userRequest: agentState.userMessages[agentState.userMessages.length - 1].content,
                 currentFeature: agentState.currentFeature,
+                fileTree: getFileTree(),
+                previousCommands: this.joinCommands(agentState),
                 relevantFiles: "\n\n" + JSON.stringify(agentState.relevantFiles) + "\n\n"
             }));
         }
         
         agentState = await this.queryFileSystem(agentState);
+        agentState.messages.push(agentState.leadProgrammerMessages[agentState.leadProgrammerMessages.length - 1])
+        console.log(agentState.messages[agentState.messages.length - 1].content)
         return agentState;
     }
 
@@ -248,10 +273,16 @@ class LeadProgrammer extends Agent {
             ["system", leadProgrammerSystemPromptTemplate],
             ["user", generateEditCommandForFeatureImplementation]
         ]);
+        agentState.messages.push(new HumanMessage(generateEditCommandForFeatureImplementation));
         const chain = prompt.pipe(model);
         agentState.leadProgrammerMessages.push(await chain.invoke({
+            requirementsDocument: agentState.requirementsDocument,
             userRequest: agentState.userMessages[agentState.userMessages.length - 1].content,
             currentFeature: agentState.currentFeature,
+            fileTree: getFileTree(),
+            previousCommands: this.joinCommands(agentState),
+            relevantFiles: agentState.relevantFiles
+            
         }));
     
         const editCommands = String(agentState.leadProgrammerMessages[agentState.leadProgrammerMessages.length - 1].content).split("\n");
@@ -287,6 +318,56 @@ class LeadProgrammer extends Agent {
                 }
             }
         }
+        agentState.messages.push(agentState.leadProgrammerMessages[agentState.leadProgrammerMessages.length - 1])
+        console.log(agentState.messages[agentState.messages.length - 1].content)
         return agentState;
-    } 
+    }
+    async generateSummonCommandForFeatureImplementation(agentState: AgentState) : Promise<AgentState> {
+        const prompt = ChatPromptTemplate.fromMessages([
+            ["system", leadProgrammerSystemPromptTemplate],
+            ["user", generateSummonCommandForFeatureImplementation]
+        ])
+        agentState.messages.push(new HumanMessage(generateSummonCommandForFeatureImplementation));
+        const chain = prompt.pipe(model);
+        if(agentState.relevantFiles["fileNameGoesHere"]) {
+            agentState.leadProgrammerMessages.push(await chain.invoke({
+                requirementsDocument: agentState.requirementsDocument,
+                userRequest: agentState.userMessages[agentState.userMessages.length - 1].content,
+                currentFeature: agentState.currentFeature,
+                fileTree: getFileTree(),
+                relevantFiles: "You need to query for relevant files first."
+            }));
+        } else {
+            agentState.leadProgrammerMessages.push(await chain.invoke({
+                requirementsDocument: agentState.requirementsDocument,
+                userRequest: agentState.userMessages[agentState.userMessages.length - 1].content,
+                currentFeature: agentState.currentFeature,
+                fileTree: getFileTree(),
+                relevantFiles: "\n\n" + JSON.stringify(agentState.relevantFiles) + "\n\n"
+            }));
+        }
+        agentState.messages.push(agentState.leadProgrammerMessages[agentState.leadProgrammerMessages.length - 1])
+        console.log(agentState.messages[agentState.messages.length - 1].content)
+        return agentState;
+    }
+    async generateJobActionDecision(agentState: AgentState): Promise<AgentState> {
+        const prompt = ChatPromptTemplate.fromMessages([
+            ["system", leadProgrammerSystemPromptTemplate],
+            ["user", generateJobActionDecision]
+        ])
+        agentState.messages.push(new HumanMessage(generateJobActionDecision));
+        const chain = prompt.pipe(model);
+        agentState.leadProgrammerMessages.push(await chain.invoke({
+            requirementsDocument: agentState.requirementsDocument,
+            userRequest: agentState.userMessages[agentState.userMessages.length - 1].content,
+            currentFeature: agentState.currentFeature,
+            fileTree: getFileTree(),
+            relevantFiles: "\n\n" + JSON.stringify(agentState.relevantFiles) + "\n\n"
+        }));
+        agentState.messages.push(agentState.leadProgrammerMessages[agentState.leadProgrammerMessages.length - 1])
+        console.log(agentState.messages[agentState.messages.length - 1].content)
+        return agentState;
+    }
 }
+
+export { LeadProgrammer }

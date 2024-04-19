@@ -13,6 +13,7 @@ class ComponentDesignerState {
 }
 
 class AgentState {
+    messages: BaseMessage[];
     userMessages: BaseMessage[];
     projectLeadMessages: BaseMessage[];
     leadProgrammerMessages: BaseMessage[];
@@ -21,16 +22,16 @@ class AgentState {
     leadTesterMessages: BaseMessage[];
     featureSuggesterMessages: BaseMessage[];
     competitiveAnalystMessages: BaseMessage[];
-    requirementsDocument: string[];
+    requirementsDocument: string;
     currentFeature: string;
     competitiveAnalysisWebQuery: string;
     competitiveAnalysisResults: string;
     identicality: string;
     competitionFeatures: string;
-    backlog: string;
     plan: string;
     projectStructure: string;
     environmentSetup: string;
+    environmentState: string;
     terminalCommands: string[];
     terminalOutputs: string[];
     previousQuery: string;
@@ -40,6 +41,7 @@ class AgentState {
 
 
     constructor() {
+        this.messages = [];
         this.userMessages = [];
         this.projectLeadMessages = [];
         this.leadProgrammerMessages = [];
@@ -48,16 +50,16 @@ class AgentState {
         this.leadTesterMessages = [];
         this.featureSuggesterMessages = [];
         this.competitiveAnalystMessages = [];
-        this.requirementsDocument = [];
+        this.requirementsDocument = "";
         this.currentFeature = "";
         this.competitiveAnalysisWebQuery = "";
         this.competitiveAnalysisResults = "";
         this.identicality = "";
         this.competitionFeatures = "";
-        this.backlog = "";
         this.plan = "";
         this.projectStructure = "";
         this.environmentSetup = "";
+        this.environmentState = "";
         this.terminalCommands = [];
         this.terminalOutputs = [];
         this.previousQuery = "";
@@ -70,6 +72,33 @@ class AgentState {
             }]
         };
         this.complete = false;
+    }
+    update(y: AgentState) {
+        this.messages = y.messages;
+        this.userMessages = y.userMessages;
+        this.projectLeadMessages = y.projectLeadMessages;
+        this.leadProgrammerMessages = y.leadProgrammerMessages;
+        this.componentDesignerStates = y.componentDesignerStates;
+        this.structureAnalystMessages = y.structureAnalystMessages;
+        this.leadTesterMessages = y.leadTesterMessages;
+        this.featureSuggesterMessages = y.featureSuggesterMessages;
+        this.competitiveAnalystMessages = y.competitiveAnalystMessages;
+        this.requirementsDocument = y.requirementsDocument;
+        this.currentFeature = y.currentFeature;
+        this.competitiveAnalysisWebQuery = y.competitiveAnalysisWebQuery;
+        this.competitiveAnalysisResults = y.competitiveAnalysisResults;
+        this.identicality = y.identicality;
+        this.competitionFeatures = y.competitionFeatures;
+        this.plan = y.plan;
+        this.projectStructure = y.projectStructure;
+        this.environmentSetup = y.environmentSetup;
+        this.environmentState = y.environmentState;
+        this.terminalCommands = y.terminalCommands;
+        this.terminalOutputs = y.terminalOutputs;
+        this.previousQuery = y.previousQuery;
+        this.relevantFiles = y.relevantFiles;
+        this.complete = y.complete;
+        return this;
     }
 }
 

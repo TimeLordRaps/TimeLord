@@ -16,18 +16,8 @@ export interface SearchResult {
     lineEnd: number;
 }
 
-async function getDirectoryListing(): Promise<Directory> {
-    const lsResponse = await fetch('/api/terminal', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: "ls -R",
-    });
-  
-    if (!lsResponse.ok) throw new Error('Failed to get directory listing');
-  
-    const data = await lsResponse.text();
+async function getDirectoryListing(): Promise<Directory> {  
+    const data = await getFileTree();
     const lsLines = data.split('\n');
   
     const workspaceDirectory: Directory = {
@@ -273,7 +263,16 @@ async function querySemantic(query: string): Promise<SearchResult[]> {
 }
 
 //replaceInFile
-async function replaceInFile(path: string, lineStart: number, lineEnd: number, replacement: string): Promise<SearchResults> {
+async function replaceInFile(path: string, lineStart: number, lineEnd: number, replacement: string): Promise<void> {
+    // check files existence if it doesnt exist create it
+    const lsResponse = await fetch('/api/terminal', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: `ls ${path}`,
+    });
+
     // replace the lines from lineStart to lineEnd with the replacement text
     const escapedReplacement = replacement.replace(/\\/g, '\\\\')
     const command = `sed -i '${lineStart},${lineEnd}c\\\\${escapedReplacement}' ${path}`
@@ -289,7 +288,28 @@ async function replaceInFile(path: string, lineStart: number, lineEnd: number, r
 }
 
 //insertInFile
-async function insertInFile(path: string, line: number, insertion: string): Promise<SearchResult> {
+async function insertInFile(path: string, line: number, insertion: string): Promise<void> {
+    // check files existence if it doesnt exist create it
+    const lsResponse = await fetch('/api/terminal', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: `ls ${path}`,
+    });
+    if (!lsResponse.ok) throw new Error('Failed to check file existence');
+    const lsData = await lsResponse.text();
+    if (!lsData.includes(path)) {
+        const touchResponse = await fetch('/api/terminal', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: `touch ${path}`,
+        });
+        if (!touchResponse.ok) throw new Error('Failed to create file');
+    }
+
     // insert the insertion text after the line number in the file
     const escapedReplacement = insertion.replace(/\\/g, '\\\\')
     const command = `sed -i '${line}a\\\\${escapedReplacement}' ${path}`
@@ -304,4 +324,19 @@ async function insertInFile(path: string, line: number, insertion: string): Prom
     if (!catResponse.ok) throw new Error('Failed to insert in file');
 }
 
-export { consolidateResults, findInFiles, goToLine, querySemantic, replaceInFile, insertInFile }
+async function getFileTree(): Promise<String> {
+    const lsResponse = await fetch('/api/terminal', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: "ls -R",
+    });
+  
+    if (!lsResponse.ok) throw new Error('Failed to get directory listing');
+  
+    const data = await lsResponse.text();
+    return data;
+}
+
+export { consolidateResults, findInFiles, goToLine, querySemantic, replaceInFile, insertInFile, getFileTree }
